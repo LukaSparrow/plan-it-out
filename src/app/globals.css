@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts ──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --font-cabinet:    'DM Serif Display', Georgia, serif;
+  --font-satoshi:    'DM Sans', system-ui, sans-serif;
+  --font-jetbrains:  'JetBrains Mono', monospace;
+
+  /* Light mode surfaces */
+  --surface-0: 34 33% 97%;   /* near-white warm */
+  --surface-1: 34 20% 94%;
+  --surface-2: 34 14% 90%;
+  --surface-3: 34 10% 85%;
+
+  /* Light mode ink */
+  --ink:        24 20% 10%;
+  --ink-muted:  24 10% 38%;
+  --ink-subtle: 24  6% 58%;
+
+  /* Brand orange */
+  --brand: 22 95% 53%;
+}
+
+.dark {
+  --surface-0: 220 16% 10%;
+  --surface-1: 220 14% 14%;
+  --surface-2: 220 12% 18%;
+  --surface-3: 220 10% 24%;
+
+  --ink:        0 0% 96%;
+  --ink-muted:  220 8% 68%;
+  --ink-subtle: 220 6% 50%;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-satoshi);
+  background-color: hsl(var(--surface-0));
+  color: hsl(var(--ink));
+  min-height: 100dvh;
+}
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--font-cabinet);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--surface-3));
+  border-radius: 99px;
+}
+
+/* ─── Custom utilities ──────────────────────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: rgba(255,255,255,.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.10);
+  }
+
+  .dark .glass {
+    background: rgba(0,0,0,.18);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+  .animation-delay-600 { animation-delay: 600ms; }
+  .animation-delay-700 { animation-delay: 700ms; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl
+           transition-all duration-200 active:scale-95 shadow-sm hover:shadow-glow;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-surface-2 text-ink font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border border-surface-3 hover:border-brand-400 bg-transparent hover:bg-surface-1
+           text-ink font-medium px-4 py-2 rounded-xl transition-all duration-200 active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full bg-surface-1 border border-surface-3 focus:border-brand-400 focus:ring-2
+           focus:ring-brand-400/20 rounded-xl px-4 py-3 text-ink placeholder:text-ink-subtle
+           transition-all duration-200 outline-none;
+  }
+
+  .card {
+    @apply bg-surface-1 border border-surface-2 rounded-2xl shadow-card;
+  }
+
+  .card-hover {
+    @apply card hover:border-brand-400/40 hover:shadow-card-lg transition-all duration-200
+           cursor-pointer;
+  }
+}

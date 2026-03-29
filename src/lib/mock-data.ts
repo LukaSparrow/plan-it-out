@@ -1,0 +1,132 @@
+import { Event, User } from '@/types'
+
+export const MOCK_USER: User = {
+  id: 'usr_1',
+  email: 'jan.kowalski@example.com',
+  name: 'Jan Kowalski',
+  avatar_url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Jan',
+  created_at: '2024-01-15T10:00:00Z',
+}
+
+export const MOCK_FRIENDS: User[] = [
+  {
+    id: 'usr_2',
+    name: 'Anna Nowak',
+    email: 'anna@example.com',
+    avatar_url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Anna',
+    created_at: '2024-02-01T10:00:00Z',
+  },
+  {
+    id: 'usr_3',
+    name: 'Piotr Wiśniewski',
+    email: 'piotr@example.com',
+    avatar_url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Piotr',
+    created_at: '2024-02-05T10:00:00Z',
+  },
+  {
+    id: 'usr_4',
+    name: 'Marta Dąbrowska',
+    email: 'marta@example.com',
+    avatar_url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marta',
+    created_at: '2024-02-10T10:00:00Z',
+  },
+]
+
+export const MOCK_EVENTS: Event[] = [
+  {
+    id: 'evt_1',
+    title: 'Wyjazd na narty – Zakopane',
+    description: 'Długo wyczekiwany wypad w góry! Śpiwory, ciepłe kurtki i dobra muzyka.',
+    date: '2025-02-14T08:00:00Z',
+    end_date: '2025-02-17T20:00:00Z',
+    location: 'Zakopane, Polska',
+    location_lat: 49.2992,
+    location_lng: 19.9496,
+    category: 'trip',
+    status: 'upcoming',
+    organizer_id: 'usr_1',
+    organizer: MOCK_USER,
+    participants: [
+      { id: 'p1', user: MOCK_USER,         role: 'organizer', rsvp: 'accepted', joined_at: '2024-12-01T10:00:00Z' },
+      { id: 'p2', user: MOCK_FRIENDS[0],   role: 'member',    rsvp: 'accepted', joined_at: '2024-12-02T10:00:00Z' },
+      { id: 'p3', user: MOCK_FRIENDS[1],   role: 'member',    rsvp: 'pending',  joined_at: '2024-12-02T10:00:00Z' },
+      { id: 'p4', user: MOCK_FRIENDS[2],   role: 'member',    rsvp: 'accepted', joined_at: '2024-12-03T10:00:00Z' },
+    ],
+    checklist_items: [
+      { id: 'c1', event_id: 'evt_1', label: 'Narty i kijki', assigned_to: MOCK_USER,       is_done: true,  created_by: MOCK_USER, created_at: '2024-12-01T10:00:00Z' },
+      { id: 'c2', event_id: 'evt_1', label: 'Apteczka',      assigned_to: MOCK_FRIENDS[0], is_done: false, created_by: MOCK_USER, created_at: '2024-12-01T10:00:00Z' },
+      { id: 'c3', event_id: 'evt_1', label: 'Zakwaterowanie', assigned_to: MOCK_USER,      is_done: true,  created_by: MOCK_USER, created_at: '2024-12-01T10:00:00Z' },
+      { id: 'c4', event_id: 'evt_1', label: 'Jedzenie na drogę', assigned_to: MOCK_FRIENDS[1], is_done: false, created_by: MOCK_USER, created_at: '2024-12-01T10:00:00Z' },
+    ],
+    expenses: [
+      { id: 'e1', event_id: 'evt_1', description: 'Nocleg Airbnb', amount: 1200, currency: 'PLN', paid_by: MOCK_USER, split_among: [MOCK_USER, ...MOCK_FRIENDS], created_at: '2024-12-10T10:00:00Z' },
+      { id: 'e2', event_id: 'evt_1', description: 'Paliwo', amount: 280, currency: 'PLN', paid_by: MOCK_FRIENDS[1], split_among: [MOCK_USER, ...MOCK_FRIENDS], created_at: '2024-12-10T10:00:00Z' },
+    ],
+    cover_color: 'from-blue-500 to-cyan-400',
+    created_at: '2024-12-01T10:00:00Z',
+  },
+  {
+    id: 'evt_2',
+    title: 'Grill u Piotra',
+    description: 'Sobotni grill w ogrodzie, BYO piwo 🍺',
+    date: '2025-01-25T15:00:00Z',
+    location: 'ul. Kwiatowa 12, Warszawa',
+    category: 'party',
+    status: 'upcoming',
+    organizer_id: 'usr_3',
+    organizer: MOCK_FRIENDS[1],
+    participants: [
+      { id: 'p5', user: MOCK_FRIENDS[1], role: 'organizer', rsvp: 'accepted', joined_at: '2024-12-15T10:00:00Z' },
+      { id: 'p6', user: MOCK_USER,       role: 'member',    rsvp: 'accepted', joined_at: '2024-12-15T10:00:00Z' },
+      { id: 'p7', user: MOCK_FRIENDS[0], role: 'member',    rsvp: 'accepted', joined_at: '2024-12-16T10:00:00Z' },
+    ],
+    checklist_items: [
+      { id: 'c5', event_id: 'evt_2', label: 'Kiełbaski',  assigned_to: MOCK_USER,       is_done: false, created_by: MOCK_FRIENDS[1], created_at: '2024-12-15T10:00:00Z' },
+      { id: 'c6', event_id: 'evt_2', label: 'Naczynia',   assigned_to: MOCK_FRIENDS[0], is_done: true,  created_by: MOCK_FRIENDS[1], created_at: '2024-12-15T10:00:00Z' },
+    ],
+    expenses: [],
+    cover_color: 'from-pink-500 to-rose-400',
+    created_at: '2024-12-15T10:00:00Z',
+  },
+  {
+    id: 'evt_3',
+    title: 'Hackathon – AI dla klimatu',
+    description: '48h intensywnego kodowania w dobrym towarzystwie.',
+    date: '2024-11-30T09:00:00Z',
+    end_date: '2024-12-02T18:00:00Z',
+    location: 'Campus Warsaw, ul. Złota 59',
+    category: 'work',
+    status: 'past',
+    organizer_id: 'usr_1',
+    organizer: MOCK_USER,
+    participants: [
+      { id: 'p8', user: MOCK_USER,       role: 'organizer', rsvp: 'accepted', joined_at: '2024-11-01T10:00:00Z' },
+      { id: 'p9', user: MOCK_FRIENDS[2], role: 'member',    rsvp: 'accepted', joined_at: '2024-11-02T10:00:00Z' },
+    ],
+    checklist_items: [],
+    expenses: [
+      { id: 'e3', event_id: 'evt_3', description: 'Pizza na noc', amount: 156, currency: 'PLN', paid_by: MOCK_USER, split_among: [MOCK_USER, MOCK_FRIENDS[2]], created_at: '2024-12-01T00:00:00Z' },
+    ],
+    cover_color: 'from-slate-500 to-gray-400',
+    created_at: '2024-11-01T10:00:00Z',
+  },
+  {
+    id: 'evt_4',
+    title: 'Bieganie – Maraton Warszawski',
+    description: 'Razem przebiegniemy 42 km! Trening zaczynamy już teraz.',
+    date: '2025-04-27T08:00:00Z',
+    location: 'Stadion Narodowy, Warszawa',
+    category: 'sport',
+    status: 'upcoming',
+    organizer_id: 'usr_2',
+    organizer: MOCK_FRIENDS[0],
+    participants: [
+      { id: 'p10', user: MOCK_FRIENDS[0], role: 'organizer', rsvp: 'accepted', joined_at: '2024-10-01T10:00:00Z' },
+      { id: 'p11', user: MOCK_USER,        role: 'member',    rsvp: 'pending',  joined_at: '2024-10-02T10:00:00Z' },
+    ],
+    checklist_items: [],
+    expenses: [],
+    cover_color: 'from-green-500 to-emerald-400',
+    created_at: '2024-10-01T10:00:00Z',
+  },
+]
