@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
-import { MOCK_USER } from '@/lib/mock-data'
+import { authApi } from '@/lib/api'
 
 const registerSchema = z
   .object({
@@ -56,18 +56,14 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setApiError(null)
     try {
-      // TODO: replace with real API call
-      // const res = await authApi.register(data.name, data.email, data.password)
-      // setToken(res.data.access_token)
-      // const me = await authApi.me()
-      // setUser(me.data)
-
-      await new Promise((r) => setTimeout(r, 900))
-      setToken('mock_jwt_token_123')
-      setUser({ ...MOCK_USER, name: data.name, email: data.email })
+      await authApi.register(data.name, data.email, data.password)
+      const loginRes = await authApi.login(data.email, data.password)
+      setToken(loginRes.data.access_token)
+      const me = await authApi.me()
+      setUser(me.data)
       router.push('/dashboard')
     } catch {
-      setApiError('Wystąpił błąd. Spróbuj ponownie.')
+      setApiError('Konto z takim adresem e-mail już istnieje, lub wystąpił błąd.')
     }
   }
 
