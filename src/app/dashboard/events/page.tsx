@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Filter } from 'lucide-react'
-import { MOCK_EVENTS } from '@/lib/mock-data'
 import { EventCard } from '@/components/events/EventCard'
 import { CATEGORY_LABELS } from '@/lib/utils'
-import type { EventStatus, EventCategory } from '@/types'
+import type { Event, EventStatus, EventCategory } from '@/types'
+import { useQuery } from '@tanstack/react-query'
+import { eventsApi } from '@/lib/api'
 
 const STATUS_FILTERS: { value: EventStatus | 'all'; label: string }[] = [
   { value: 'all',      label: 'Wszystkie' },
@@ -19,7 +20,29 @@ export default function EventsPage() {
   const [status, setStatus] = useState<EventStatus | 'all'>('all')
   const [query, setQuery] = useState('')
 
-  const filtered = MOCK_EVENTS.filter((e) => {
+  const { data: dbEvents = [], isLoading } = useQuery<Event[]>({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const res = await eventsApi.list()
+      return res.data.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        date: e.date,
+        location: e.location,
+        category: 'other', 
+        status: 'upcoming',
+        organizer_id: e.owner_id,
+        organizer: { id: e.owner_id, name: 'Owner', email: '', created_at: '' },
+        participants: [],
+        checklist_items: [],
+        expenses: [],
+        created_at: new Date().toISOString(),
+      })) as Event[]
+    }
+  })
+
+  const filtered = dbEvents.filter((e) => {
     const matchStatus = status === 'all' || e.status === status
     const matchQuery  = e.title.toLowerCase().includes(query.toLowerCase()) ||
                         e.location.toLowerCase().includes(query.toLowerCase())
@@ -32,7 +55,7 @@ export default function EventsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl text-ink">Moje wydarzenia</h1>
-          <p className="text-ink-muted text-sm mt-1">{MOCK_EVENTS.length} wydarzeń łącznie</p>
+          <p className="text-ink-muted text-sm mt-1">{dbEvents.length} wydarzeń łącznie</p>
         </div>
         <Link href="/dashboard/events/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={16} />

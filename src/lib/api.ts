@@ -33,11 +33,22 @@ api.interceptors.response.use(
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
+  login: (email: string, password: string) => {
+    // FastAPI OAuth2 wymaga URLSearchParams i klucza 'username'
+    const formData = new URLSearchParams()
+    formData.append('username', email)
+    formData.append('password', password)
+    
+    return api.post('/auth/login', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    })
+  },
 
   register: (name: string, email: string, password: string) =>
-    api.post('/auth/register', { name, email, password }),
+    // Backend oczekuje 'full_name' zamiast 'name'
+    api.post('/auth/register', { full_name: name, email, password }),
 
   me: () => api.get('/auth/me'),
 

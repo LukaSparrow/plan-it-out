@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
-import { MOCK_USER } from '@/lib/mock-data'
+import { authApi } from '@/lib/api'
 
 const loginSchema = z.object({
   email: z.string().email('Podaj poprawny adres e-mail'),
@@ -33,23 +33,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setApiError(null)
     try {
-      // TODO: replace with real API call
-      // const res = await authApi.login(data.email, data.password)
-      // setToken(res.data.access_token)
-      // const me = await authApi.me()
-      // setUser(me.data)
-
-      // ── Mock login for now ──
-      await new Promise((r) => setTimeout(r, 900))
-      if (data.email === 'jan@example.com' && data.password === 'password') {
-        setToken('mock_jwt_token_123')
-        setUser(MOCK_USER)
-        router.push('/dashboard')
-      } else {
-        setApiError('Nieprawidłowy e-mail lub hasło.')
-      }
+      const res = await authApi.login(data.email, data.password)
+      setToken(res.data.access_token)
+      const me = await authApi.me()
+      setUser(me.data)
+      router.push('/dashboard')
     } catch {
-      setApiError('Wystąpił błąd. Spróbuj ponownie.')
+      setApiError('Nieprawidłowy e-mail lub hasło, lub wystąpił błąd.')
     }
   }
 

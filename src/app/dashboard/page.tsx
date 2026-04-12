@@ -4,7 +4,10 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import { Bell, Plus, Search } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
-import { MOCK_EVENTS, MOCK_FRIENDS } from '@/lib/mock-data'
+import { useQuery } from '@tanstack/react-query'
+import { eventsApi } from '@/lib/api'
+import { DefaultError } from '@tanstack/react-query'
+import { Event } from '@/types'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
@@ -14,21 +17,45 @@ import { EventCard } from '@/components/events/EventCard'
 export default function DashboardPage() {
   const { user } = useAuthStore()
 
-  // Stats derived from mock data
+  const { data: dbEvents = [], isLoading } = useQuery<Event[], DefaultError>({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const res = await eventsApi.list()
+      // Map API events up to our frontend types
+      return res.data.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        date: e.date,
+        location: e.location,
+        category: 'other', 
+        status: 'upcoming',
+        organizer_id: e.owner_id,
+        organizer: { id: e.owner_id, name: 'Owner', email: '', created_at: '' },
+        participants: [],
+        checklist_items: [],
+        expenses: [],
+        created_at: new Date().toISOString(),
+      })) as Event[]
+    }
+  })
+
+  // Stats derived from events data
   const stats = useMemo(() => {
-    const upcoming = MOCK_EVENTS.filter((e) => e.status === 'upcoming').length
-    const allItems = MOCK_EVENTS.flatMap((e) => e.checklist_items)
-    const done = allItems.filter((i) => i.is_done).length
-    const totalExpenses = MOCK_EVENTS.flatMap((e) => e.expenses).reduce((sum, ex) => sum + ex.amount, 0)
+    const upcoming = dbEvents.filter((e) => e.status === 'upcoming').length
+    const allItems = dbEvents.flatMap((e) => e.checklist_items || [])
+    const done = allItems.filter((i) => i?.is_done).length
+    const totalExpenses = dbEvents.flatMap((e) => e.expenses || []).reduce((sum, ex) => sum + ex.amount, 0)
+    
     return {
-      eventsCount: MOCK_EVENTS.length,
+      eventsCount: dbEvents.length,
       upcomingCount: upcoming,
-      friendsCount: MOCK_FRIENDS.length,
-      checklistDone: done,
+      friendsCount: 0,
+      checklistDone:0, // docelowo z backendu
       checklistTotal: allItems.length,
       totalExpenses,
     }
-  }, [])
+  }, [dbEvents])
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -82,7 +109,9 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              {MOCK_EVENTS.slice(0, 4).map((event, i) => (
+              {isLoading ? (
+                <div className="col-span-2 text-center text-ink-muted py-8">Ładowanie wydarzeń...</div>
+              ) : dbEvents.slice(0, 4).map((event, i) => (
                 <div
                   key={event.id}
                   className="animate-fade-up opacity-0"
@@ -95,12 +124,12 @@ export default function DashboardPage() {
           </div>
 
           {/* My tasks */}
-          <MyTasks events={MOCK_EVENTS} currentUserId={user?.id ?? 'usr_1'} />
+          <MyTasks events={dbEvents} currentUserId={user?.id ?? 'usr_1'} />
         </div>
 
         {/* Right column */}
         <div className="space-y-6">
-          <UpcomingEvents events={MOCK_EVENTS} />
+          <UpcomingEvents events={dbEvents} />
           <ActivityFeed />
         </div>
       </div>
