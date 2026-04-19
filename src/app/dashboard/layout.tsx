@@ -1,5 +1,5 @@
 import { verifySession } from '@/lib/dal'
-import DashboardClientLayout from './client-layout'
+import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export default async function DashboardLayout({
   children,
@@ -13,8 +13,8 @@ export default async function DashboardLayout({
 
   // 2. Jeśli token jest poprawny, renderujemy Twój interfejs kliencki
   return (
-    <DashboardClientLayout>
+    <DashboardShell>
       {children}
-    </DashboardClientLayout>
+    </DashboardShell>
   )
 }

@@ -73,7 +73,7 @@ export default function DashboardPage() {
             {new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
           <h1 className="font-display text-3xl lg:text-4xl text-ink mt-0.5">
-            {greeting}, <span className="text-gradient">{user?.name?.split(' ')[0] ?? 'Użytkowniku'}</span> 👋
+            {greeting}, <span className="text-gradient">{user?.full_name?.split(' ')[0] ?? 'Użytkowniku'}</span> 👋
           </h1>
         </div>
 

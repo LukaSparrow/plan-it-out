@@ -4,6 +4,7 @@ node_modules/
 .pnp.js
 venv/
 backend/venv/
+backend/.venv/
 
 # Production build
 /.next/

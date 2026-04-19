@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search, Loader2 } from 'lucide-react' // Dodano Loader2
 import { EventCard } from '@/components/events/EventCard'
-import { CATEGORY_LABELS } from '@/lib/utils'
-import type { Event, EventStatus, EventCategory } from '@/types'
+import type { Event, EventStatus } from '@/types'
 import { useQuery } from '@tanstack/react-query'
 import { eventsApi } from '@/lib/api'
 
@@ -55,7 +54,9 @@ export default function EventsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl text-ink">Moje wydarzenia</h1>
-          <p className="text-ink-muted text-sm mt-1">{dbEvents.length} wydarzeń łącznie</p>
+          <p className="text-ink-muted text-sm mt-1">
+            {isLoading ? 'Pobieranie...' : `${dbEvents.length} wydarzeń łącznie`}
+          </p>
         </div>
         <Link href="/dashboard/events/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={16} />
@@ -92,19 +93,31 @@ export default function EventsPage() {
         </div>
       </div>
 
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div className="py-20 text-center">
+      {/* Content Area */}
+      {isLoading ? (
+        /* Stan ładowania - Spinner i tekst */
+        <div className="py-24 flex flex-col items-center justify-center">
+          <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
+          <p className="text-ink-muted animate-pulse font-medium">Ładowanie Twoich wydarzeń...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        /* Stan pusty (tylko gdy dane są załadowane, ale nic nie pasuje) */
+        <div className="py-20 text-center bg-surface-1 border border-dashed border-surface-2 rounded-3xl">
           <p className="text-4xl mb-3">🔍</p>
-          <p className="text-ink-muted">Brak wydarzeń pasujących do filtrów</p>
+          <p className="text-ink font-medium">Nie znaleźliśmy żadnych wydarzeń</p>
+          <p className="text-ink-muted text-sm mt-1">Spróbuj zmienić filtry lub wyszukiwaną frazę</p>
         </div>
       ) : (
+        /* Grid z wynikami */
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((event, i) => (
             <div
               key={event.id}
               className="animate-fade-up opacity-0"
-              style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'forwards' }}
+              style={{ 
+                animationDelay: `${i * 60}ms`, 
+                animationFillMode: 'forwards' 
+              }}
             >
               <EventCard event={event} />
             </div>
