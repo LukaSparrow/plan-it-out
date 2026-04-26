@@ -1,20 +1,50 @@
 """
-Modele - Kształty wymiany zapytań! 
-Jak ktoś wysyła wniosek by zrobić event to Pydantic upewni się, że idą dobre daty, i odpowiednio wyświetli frontowi.
-Żadna z tych klas NIE odpowiada wprost za modyfikacje w Bazie! Tylko weryfikacja.
+Schematy Pydantic dla wydarzenia.
+EventRead - lista (lekka, bez relacji), EventReadFull - szczegóły (z uczestnikami,
+checklistą i wydatkami zagnieżdżonymi).
 """
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from app.models.event import EventBase
+from app.models.event import EventBase, EventCategory, EventStatus
+from app.schemas.user import UserPublic
+from app.schemas.participant import ParticipantRead
 
-# Nowe np. z Reactowego UI. Dodatkowy parametr mógłby wejść np "Wymagania dla API". 
-# Ale EventBase nam dziedziczy już title/desc z plikow modeli.
+
 class EventCreate(EventBase):
+    """POST /events - frontend wysyła dokładnie pola z EventBase."""
     pass
 
-# Kiedy oddajemy eventy używamy EventRead. Tutaj frontend może zassać uuid-y ownerów
+
+class EventUpdate(BaseModel):
+    """PUT /events/{id} - wszystkie pola opcjonalne (partial update)."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    location: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
+    category: Optional[EventCategory] = None
+    status: Optional[EventStatus] = None
+
+
 class EventRead(EventBase):
+    """Lekka wersja do listy - bez kosztownych relacji."""
     id: UUID
     owner_id: UUID
+    created_at: datetime
+
+
+class EventReadFull(EventRead):
+    """Pełna wersja dla GET /events/{id} - razem z relacjami.
+
+    UWAGA: checklist_items i expenses są tu osobne, ale frontend i tak ładuje je
+    przez dedykowane endpointy (/checklist, /expenses). Zwracamy je dla wygody,
+    żeby strona szczegółów mogła zrobić jeden round-trip.
+    """
+    organizer: UserPublic
+    participants: List[ParticipantRead] = []
+
+    model_config = {"from_attributes": True}
