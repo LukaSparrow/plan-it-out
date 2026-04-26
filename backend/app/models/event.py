@@ -1,27 +1,73 @@
 """
 Plik z fizyczną mapą Tabeli `events`.
-Wyjdzie z tego tabela SQL gdzie np. tytuł, opis to kolumny.
-Klukiem jest owner_id, mówiące KTO jest autorem tego eventu.
+Rozszerzony o: kategorię, datę zakończenia, koordynaty, status oraz relacje
+do uczestników, listy zadań i wydatków.
 """
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from enum import Enum
 
-# Pola używane często i do budowania widoków (Danych z Requesta)
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.participant import Participant
+    from app.models.checklist import ChecklistItem
+    from app.models.expense import Expense
+
+
+class EventCategory(str, Enum):
+    TRIP = "trip"
+    PARTY = "party"
+    MEETUP = "meetup"
+    WORK = "work"
+    SPORT = "sport"
+    OTHER = "other"
+
+
+class EventStatus(str, Enum):
+    UPCOMING = "upcoming"
+    ONGOING = "ongoing"
+    PAST = "past"
+    CANCELLED = "cancelled"
+
+
+# Pola wspólne - dziedziczone przez schematy Pydantic, żeby nie powtarzać definicji
 class EventBase(SQLModel):
     title: str
     description: Optional[str] = None
     date: datetime
+    end_date: Optional[datetime] = None
     location: str
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
+    category: EventCategory = Field(default=EventCategory.OTHER)
+    status: EventStatus = Field(default=EventStatus.UPCOMING)
 
-# Krok magiczny "table=True" zSQLModel - oznacza, puszczaj to do chmury (tabeli `events`)!
+
 class Event(EventBase, table=True):
     __tablename__ = "events"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    
-    # Nawiązanie więzi z idkiem user'a z pliku models.user.py
     owner_id: UUID = Field(foreign_key="users.id")
-    
-    # Odnosimy się do relacji. Czyli ten event ma zawsze jednego przypisanego 'user' (właściciela)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Organizator (właściciel) - 1:N z User
     owner: "User" = Relationship(back_populates="events")
+
+    # Uczestnicy - N:M przez tabelę participants (z dodatkowymi polami: rola, RSVP)
+    participants: List["Participant"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+    # Lista zadań - 1:N
+    checklist_items: List["ChecklistItem"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+    # Wydatki - 1:N
+    expenses: List["Expense"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )

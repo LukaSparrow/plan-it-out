@@ -13,11 +13,14 @@ load_dotenv(".env")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Import all the models so that SQLModel.metadata zna wszystkie tabele
+# zanim Alembic odpali autogenerate.
 from app.models.user import User
 from app.models.event import Event
+from app.models.participant import Participant
+from app.models.checklist import ChecklistItem
+from app.models.expense import Expense, ExpenseSplit
 from sqlmodel import SQLModel
-# Import all the models so that Base has them before being
-# passed to env.py for 'autogenerate' support
 
 config = context.config
 
