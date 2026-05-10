@@ -7,6 +7,7 @@ import { EventCard } from '@/components/events/EventCard'
 import type { Event, EventStatus } from '@/types'
 import { useQuery } from '@tanstack/react-query'
 import { eventsApi } from '@/lib/api'
+import { getEventStatus } from '@/lib/utils'
 
 const STATUS_FILTERS: { value: EventStatus | 'all'; label: string }[] = [
   { value: 'all',      label: 'Wszystkie' },
@@ -29,14 +30,14 @@ export default function EventsPage() {
         description: e.description,
         date: e.date,
         location: e.location,
-        category: 'other', 
-        status: 'upcoming',
+        category: e.category ?? 'other',
+        status: getEventStatus(e.date, e.end_date),
         organizer_id: e.owner_id,
-        organizer: { id: e.owner_id, name: 'Owner', email: '', created_at: '' },
+        organizer: { id: e.owner_id, full_name: '', email: '', created_at: '' },
         participants: [],
         checklist_items: [],
         expenses: [],
-        created_at: new Date().toISOString(),
+        created_at: e.created_at ?? new Date().toISOString(),
       })) as Event[]
     }
   })

@@ -9,8 +9,8 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, className }: EventCardProps) {
-  const doneItems = event.checklist_items.filter((i) => i.is_done).length
-  const totalItems = event.checklist_items.length
+  const doneItems = (event.checklist_items ?? []).filter((i) => i.is_done).length
+  const totalItems = (event.checklist_items ?? []).length
   const checklistPct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0
 
   return (
@@ -52,7 +52,7 @@ export function EventCard({ event, className }: EventCardProps) {
           {/* Avatars */}
           <div className="flex items-center gap-2">
             <div className="flex -space-x-2">
-              {event.participants.slice(0, 4).map((p) => (
+              {(event.participants ?? []).slice(0, 4).map((p) => (
                 <img
                   key={p.id}
                   src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.name}`}
@@ -61,13 +61,13 @@ export function EventCard({ event, className }: EventCardProps) {
                   title={p.user.name}
                 />
               ))}
-              {event.participants.length > 4 && (
+              {(event.participants ?? []).length > 4 && (
                 <div className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-3 flex items-center justify-center text-[10px] font-medium text-ink-muted">
                   +{event.participants.length - 4}
                 </div>
               )}
             </div>
-            <span className="text-xs text-ink-subtle">{event.participants.length} os.</span>
+            <span className="text-xs text-ink-subtle">{(event.participants ?? []).length} os.</span>
           </div>
 
           {/* Checklist progress */}

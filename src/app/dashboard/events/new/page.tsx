@@ -24,9 +24,11 @@ import {
   CATEGORY_COLORS,
   CATEGORY_ICONS,
   CATEGORY_LABELS,
-  formatDate,
 } from '@/lib/utils'
 import type { EventCategory } from '@/types'
+import { LocationPickerModal } from '@/components/ui/LocationPickerModal'
+import type { ConfirmedLocation } from '@/components/ui/LocationPickerModal'
+import { EventPreviewCard } from '@/components/events/EventPreviewCard'
 
 // ─── Schema ─────────────────────────────────────────────────────────────────
 // Frontend zbiera bogaty kształt zgodny z `Event` w types/index.ts.
@@ -116,12 +118,15 @@ export default function NewEventPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [apiError, setApiError] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickedLocation, setPickedLocation] = useState<ConfirmedLocation | null>(null)
 
   const {
     register,
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
@@ -141,6 +146,8 @@ export default function NewEventPage() {
         description: data.description || undefined,
         date: isoDate,
         location: data.location,
+        location_lat: pickedLocation?.lat,
+        location_lng: pickedLocation?.lng,
       }
       const res = await eventsApi.create(payload)
       return res.data
@@ -342,22 +349,35 @@ export default function NewEventPage() {
               <MapPin size={14} />
               Lokalizacja
             </label>
-            <input
-              id="location"
-              type="text"
-              placeholder="np. Kawiarnia Relax, ul. Floriańska 12, Kraków"
-              className={cn(
-                'input-field',
-                errors.location && 'border-red-400 focus:border-red-400',
-              )}
-              {...register('location')}
-            />
-            {errors.location ? (
-              <p className="text-xs text-red-500">{errors.location.message}</p>
-            ) : (
-              <p className="text-xs text-ink-subtle">
-                Integracja z mapą pojawi się w widoku szczegółu wydarzenia.
+            <div className="flex gap-2">
+              <input
+                id="location"
+                type="text"
+                placeholder="np. Kawiarnia Relax, ul. Floriańska 12, Kraków"
+                className={cn(
+                  'input-field flex-1',
+                  errors.location && 'border-red-400 focus:border-red-400',
+                )}
+                {...register('location')}
+              />
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="btn-outline flex items-center gap-1.5 text-sm flex-shrink-0"
+                title="Wybierz na mapie"
+              >
+                <MapPin size={14} />
+                Mapa
+              </button>
+            </div>
+            {pickedLocation && (
+              <p className="text-xs text-brand-500 flex items-center gap-1">
+                <MapPin size={11} />
+                {pickedLocation.lat.toFixed(4)}, {pickedLocation.lng.toFixed(4)}
               </p>
+            )}
+            {errors.location && (
+              <p className="text-xs text-red-500">{errors.location.message}</p>
             )}
           </div>
 
@@ -426,7 +446,7 @@ export default function NewEventPage() {
           <p className="text-xs font-medium text-ink-subtle uppercase tracking-wider mb-2 px-1">
             Podgląd
           </p>
-          <PreviewCard
+          <EventPreviewCard
             title={watched.title}
             description={watched.description}
             category={watched.category}
@@ -439,99 +459,16 @@ export default function NewEventPage() {
           </p>
         </aside>
       </div>
-    </div>
-  )
-}
 
-// ─── Preview card ─────────────────────────────────────────────────────────────
-interface PreviewCardProps {
-  title?: string
-  description?: string
-  category?: EventCategory
-  date?: string
-  time?: string
-  location?: string
-}
-
-function PreviewCard({
-  title,
-  description,
-  category = 'meetup',
-  date,
-  time,
-  location,
-}: PreviewCardProps) {
-  const displayTitle = title?.trim() || 'Tytuł Twojego wydarzenia'
-  const displayLocation = location?.trim() || 'Lokalizacja'
-
-  let displayDate = 'Data i godzina'
-  if (date && time) {
-    try {
-      const iso = new Date(`${date}T${time}`).toISOString()
-      displayDate = formatDate(iso, 'd MMM yyyy, HH:mm')
-    } catch {
-      // ignore – fallback do placeholder
-    }
-  }
-
-  return (
-    <div className="card overflow-hidden">
-      <div
-        className={cn(
-          'h-1.5 bg-gradient-to-r',
-          CATEGORY_COLORS[category],
-        )}
+      <LocationPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={(loc) => {
+          setPickedLocation(loc)
+          setValue('location', loc.text, { shouldValidate: true })
+        }}
+        initial={pickedLocation ?? undefined}
       />
-      <div className="p-5">
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-sm">{CATEGORY_ICONS[category]}</span>
-          <span className="text-xs text-ink-subtle font-medium">
-            {CATEGORY_LABELS[category]}
-          </span>
-        </div>
-        <h3
-          className={cn(
-            'font-semibold text-base leading-snug line-clamp-2 mb-3',
-            title ? 'text-ink' : 'text-ink-subtle italic',
-          )}
-        >
-          {displayTitle}
-        </h3>
-
-        <div className="space-y-1.5 mb-4">
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            <CalendarIcon size={13} className="flex-shrink-0" />
-            <span>{displayDate}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            <MapPin size={13} className="flex-shrink-0" />
-            <span
-              className={cn(
-                'truncate',
-                !location && 'text-ink-subtle italic',
-              )}
-            >
-              {displayLocation}
-            </span>
-          </div>
-        </div>
-
-        {description && (
-          <p className="text-xs text-ink-muted line-clamp-3 pt-3 border-t border-surface-2">
-            {description}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-2">
-          <div className="flex items-center gap-1.5 text-xs text-ink-subtle">
-            <Users size={13} />
-            <span>Tylko Ty (na razie)</span>
-          </div>
-          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
-            Nadchodzi
-          </span>
-        </div>
-      </div>
     </div>
   )
 }
