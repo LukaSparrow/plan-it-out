@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Menu, X, Bell } from "lucide-react";
+import { useEffect } from "react";
+import { Menu, X, Bell, Search } from "lucide-react";
+import { useState } from "react";
 import { Sidebar } from "./SideBar";
 import { useChatStore } from "@/lib/chatStore";
+import { useNotificationStore } from "@/lib/notificationStore";
+import { useSearchStore } from "@/lib/searchStore";
+import { NotificationPanel } from "./NotificationPanel";
+import { SearchModal } from "./SearchModal";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const connect = useChatStore((state) => state.connect);
   const disconnect = useChatStore((state) => state.disconnect);
+  const { notifications, openPanel } = useNotificationStore();
+  const { openSearch } = useSearchStore();
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     connect();
@@ -51,14 +60,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Menu size={22} />
           </button>
           <span className="font-display text-base text-ink">Plan It Out</span>
-          <button className="relative text-ink-muted">
-            <Bell size={20} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-brand-500 rounded-full" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={openSearch}
+              className="p-2 text-ink-muted hover:text-ink transition-colors"
+            >
+              <Search size={20} />
+            </button>
+            <button
+              onClick={openPanel}
+              className="relative p-2 text-ink-muted hover:text-ink transition-colors"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full" />
+              )}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+
+      {/* Global modals — available on every dashboard page */}
+      <NotificationPanel />
+      <SearchModal />
     </div>
   );
 }

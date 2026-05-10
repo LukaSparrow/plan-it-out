@@ -39,3 +39,6 @@ next-env.d.ts
 __pycache__/
 *.py[cod]
 *$py.class
+
+claude.md
+.claude

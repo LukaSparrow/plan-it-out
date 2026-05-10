@@ -4,18 +4,24 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import { Bell, Plus, Search } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
-import { useQuery } from '@tanstack/react-query'
-import { eventsApi } from '@/lib/api'
+import { useQuery, useQueries } from '@tanstack/react-query'
+import { eventsApi, checklistApi, expensesApi } from '@/lib/api'
 import { DefaultError } from '@tanstack/react-query'
-import { Event } from '@/types'
+import { Event, ChecklistItem, Expense } from '@/types'
+import { getEventStatus } from '@/lib/utils'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { MyTasks } from '@/components/dashboard/MyTasks'
 import { EventCard } from '@/components/events/EventCard'
+import { useNotificationStore } from '@/lib/notificationStore'
+import { useSearchStore } from '@/lib/searchStore'
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
+  const { notifications, openPanel } = useNotificationStore()
+  const { openSearch } = useSearchStore()
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   const { data: dbEvents = [], isLoading } = useQuery<Event[], DefaultError>({
     queryKey: ['events'],
@@ -28,34 +34,63 @@ export default function DashboardPage() {
         description: e.description,
         date: e.date,
         location: e.location,
-        category: 'other', 
-        status: 'upcoming',
+        category: e.category ?? 'other',
+        status: getEventStatus(e.date, e.end_date),
         organizer_id: e.owner_id,
-        organizer: { id: e.owner_id, name: 'Owner', email: '', created_at: '' },
+        organizer: { id: e.owner_id, full_name: '', email: '', created_at: '' },
         participants: [],
         checklist_items: [],
         expenses: [],
-        created_at: new Date().toISOString(),
+        created_at: e.created_at ?? new Date().toISOString(),
       })) as Event[]
     }
   })
 
-  // Stats derived from events data
+  // Fetch checklists and expenses for all events in parallel.
+  // Same query keys as MyTasks + Expenses page — TanStack Query shares the cache.
+  const checklistQueries = useQueries({
+    queries: dbEvents.map((e) => ({
+      queryKey: ['events', e.id, 'checklist'],
+      queryFn: async () => {
+        const res = await checklistApi.list(e.id)
+        return res.data as ChecklistItem[]
+      },
+      staleTime: 60_000,
+      enabled: dbEvents.length > 0,
+    })),
+  })
+
+  const expenseQueries = useQueries({
+    queries: dbEvents.map((e) => ({
+      queryKey: ['events', e.id, 'expenses'],
+      queryFn: async () => {
+        const res = await expensesApi.list(e.id)
+        return res.data as Expense[]
+      },
+      staleTime: 60_000,
+      enabled: dbEvents.length > 0,
+    })),
+  })
+
   const stats = useMemo(() => {
     const upcoming = dbEvents.filter((e) => e.status === 'upcoming').length
-    const allItems = dbEvents.flatMap((e) => e.checklist_items || [])
-    const done = allItems.filter((i) => i?.is_done).length
-    const totalExpenses = dbEvents.flatMap((e) => e.expenses || []).reduce((sum, ex) => sum + ex.amount, 0)
-    
+
+    const allItems = checklistQueries.flatMap((q) => q.data ?? [])
+    const checklistDone = allItems.filter((i) => i.is_done).length
+
+    const totalExpenses = expenseQueries
+      .flatMap((q) => q.data ?? [])
+      .reduce((sum, ex) => sum + ex.amount, 0)
+
     return {
       eventsCount: dbEvents.length,
       upcomingCount: upcoming,
       friendsCount: 0,
-      checklistDone:0, // docelowo z backendu
+      checklistDone,
       checklistTotal: allItems.length,
       totalExpenses,
     }
-  }, [dbEvents])
+  }, [dbEvents, checklistQueries, expenseQueries])
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -79,13 +114,21 @@ export default function DashboardPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0 animate-fade-up opacity-0 animation-delay-100" style={{ animationFillMode: 'forwards' }}>
-          <button className="hidden sm:flex btn-ghost items-center gap-2 text-sm">
+          <button
+            onClick={openSearch}
+            className="hidden sm:flex btn-ghost items-center gap-2 text-sm"
+          >
             <Search size={16} />
             Szukaj
           </button>
-          <button className="relative btn-ghost p-2.5">
+          <button
+            onClick={openPanel}
+            className="relative btn-ghost p-2.5"
+          >
             <Bell size={18} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-brand-500 rounded-full" />
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-brand-500 rounded-full" />
+            )}
           </button>
           <Link href="/dashboard/events/new" className="btn-primary hidden sm:flex items-center gap-2 text-sm">
             <Plus size={16} />
@@ -130,7 +173,7 @@ export default function DashboardPage() {
         {/* Right column */}
         <div className="space-y-6">
           <UpcomingEvents events={dbEvents} />
-          <ActivityFeed />
+          <ActivityFeed events={dbEvents} />
         </div>
       </div>
     </div>

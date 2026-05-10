@@ -17,7 +17,8 @@ export function EventChat({ eventId }: EventChatProps) {
   const currentUser = useAuthStore((state) => state.user);
   const registerHandler = useChatStore((state) => state.registerHandler);
   const unregisterHandler = useChatStore((state) => state.unregisterHandler);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true);
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["event-chat", eventId],
@@ -38,8 +39,14 @@ export function EventChat({ eventId }: EventChatProps) {
   });
 
   useEffect(() => {
-    // Scroll to bottom na start i przy nowych wiadomosciach
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -76,7 +83,7 @@ export function EventChat({ eventId }: EventChatProps) {
         Czat wydarzenia
       </div>
       
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.length === 0 ? (
           <div className="text-center text-ink-muted text-sm mt-4">
             Brak wiadomości. Bądź pierwszy!
@@ -106,7 +113,6 @@ export function EventChat({ eventId }: EventChatProps) {
             );
           })
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       <div className="p-3 border-t border-surface-2 bg-surface-1">

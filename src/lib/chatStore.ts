@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import Cookies from 'js-cookie'
+import { useNotificationStore } from './notificationStore'
 
 interface ChatMessage {
   id: string
@@ -51,12 +52,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           if (handler && currentPath.includes(`/dashboard/events/${msg.event_id}`)) {
              handler(msg)
           } else {
-             // Jesteśmy gdzie indziej - daj powiadomienie
-             // Używamy event_title przesłanego z backendu dla czytelności
-             const eventTitle = data.event_title ? data.event_title : "wydarzeniu"
+             const eventTitle = data.event_title || 'wydarzeniu'
              toast.info(`Nowa wiadomość w: ${eventTitle}`, {
                 description: `${msg.user.full_name}: ${msg.content}`,
                 className: 'bg-surface-1 border-surface-2 text-ink',
+             })
+             useNotificationStore.getState().add({
+               id: msg.id,
+               eventId: msg.event_id,
+               eventTitle,
+               senderName: msg.user.full_name,
+               content: msg.content,
+               createdAt: msg.created_at || new Date().toISOString(),
+               read: false,
              })
           }
         }
