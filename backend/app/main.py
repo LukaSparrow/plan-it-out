@@ -5,6 +5,7 @@ To jest punkt wejścia do aplikacji. Sklejamy tutaj routing, Corsy i inne ustawi
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api_router import api_router
+from app.api.v1.endpoints.websockets import router as ws_router
 
 # Tworzymy aplikację FastAPI. Zobaczymy ten tytuł w docsach /docs
 app = FastAPI(title="Plan It Out Backend")
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # Podpinamy wszystkie endpointy pod naszą aplikację
 app.include_router(api_router)
+app.include_router(ws_router, prefix="/ws", tags=["websockets"])
 
 # Na potrzeby Render.com uvicorn polecenie będzie takie: 
 # uvicorn app.main:app --host 0.0.0.0 --port $PORT

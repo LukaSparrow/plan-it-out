@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.participant import Participant
     from app.models.checklist import ChecklistItem
     from app.models.expense import Expense
+    from app.models.chat import ChatMessage
 
 
 class EventCategory(str, Enum):
@@ -68,6 +69,12 @@ class Event(EventBase, table=True):
 
     # Wydatki - 1:N
     expenses: List["Expense"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    
+    # Czat
+    chat_messages: List["ChatMessage"] = Relationship(
         back_populates="event",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

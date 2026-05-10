@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, Bell } from "lucide-react";
 import { Sidebar } from "./SideBar";
+import { useChatStore } from "@/lib/chatStore";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const connect = useChatStore((state) => state.connect);
+  const disconnect = useChatStore((state) => state.disconnect);
+
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
 
   return (
     <div className="flex h-dvh bg-surface-0 overflow-hidden">

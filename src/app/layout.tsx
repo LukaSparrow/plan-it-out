@@ -3,6 +3,7 @@ import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ui/ThemeProvider'
 import { QueryProvider } from '@/components/ui/QueryProvider'
+import { Toaster } from 'sonner'
 
 const dmSerif = DM_Serif_Display({
   subsets: ['latin'],
@@ -46,6 +47,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <QueryProvider>
             {children}
+            <Toaster richColors position="top-right" />
           </QueryProvider>
         </ThemeProvider>
       </body>

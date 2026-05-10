@@ -13,7 +13,8 @@ if TYPE_CHECKING:
     from app.models.event import Event
     from app.models.participant import Participant
     from app.models.checklist import ChecklistItem
-    from app.models.expense import Expense, ExpenseSplit
+    from app.models.expense import Expense
+    from app.models.chat import ChatMessage, ExpenseSplit
 
 
 class UserRole(str, Enum):
@@ -48,6 +49,12 @@ class User(UserBase, table=True):
     created_checklist_items: List["ChecklistItem"] = Relationship(
         back_populates="created_by",
         sa_relationship_kwargs={"foreign_keys": "[ChecklistItem.created_by_id]"},
+    )
+    
+    # Czat
+    chat_messages: List["ChatMessage"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
     # Zadania, które są mi przypisane

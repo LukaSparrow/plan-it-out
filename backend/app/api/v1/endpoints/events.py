@@ -11,8 +11,10 @@ from app.api.deps import SessionDep, get_current_user
 from app.models.user import User
 from app.models.event import Event
 from app.models.participant import Participant, ParticipantRole, RsvpStatus
+from app.models.chat import ChatMessage
 from app.schemas.event import EventCreate, EventUpdate, EventRead, EventReadFull
 from app.schemas.participant import InviteCreate, ParticipantRead
+from app.schemas.chat import ChatMessageResponse, ChatMessageCreate
 
 router = APIRouter()
 
@@ -214,3 +216,84 @@ def invite_to_event(
     session.commit()
     session.refresh(participant)
     return participant
+
+# ─── Chat ────────────────────────────────────────────────────────────────────
+@router.get(
+    "/{event_id}/chat",
+    response_model=List[ChatMessageResponse],
+)
+def get_chat_history(
+    event_id: UUID,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 50,
+) -> Any:
+    """Pobiera historię czatu dla danego wydarzenia."""
+    event = _get_event_or_404(session, event_id)
+    _check_can_view(session, event, current_user)
+
+    statement = (
+        select(ChatMessage)
+        .where(ChatMessage.event_id == event_id)
+        # Sortowanie po najstarszych (chronologicznie) lub najnowszych i odwrócenie
+        .order_by(ChatMessage.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    
+    # Pobieramy historię czatu z bazy danych
+    messages = list(session.exec(statement).all())
+    messages.reverse()  # frontend oczekuje chronologicznie (od najstarszej na górze)
+    return messages
+
+@router.post(
+    "/{event_id}/chat",
+    response_model=ChatMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def post_chat_message(
+    event_id: UUID,
+    message_in: ChatMessageCreate,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Wysyła nową wiadomość na czacie (hybrydowe WebSockets)."""
+    event = _get_event_or_404(session, event_id)
+    _check_can_view(session, event, current_user)
+
+    # Zapisujemy wiadomość przez REST API, żeby uniknąć problemów z sesją bazy w WebSocketach
+    new_message = ChatMessage(
+        event_id=event_id,
+        user_id=current_user.id,
+        content=message_in.content
+    )
+    session.add(new_message)
+    session.commit()
+    session.refresh(new_message)
+    
+    db_user = session.get(User, current_user.id)
+    new_message.user = db_user
+    
+    new_message_response = ChatMessageResponse.model_validate(new_message)
+
+    # Przygotuj powiadomienie na WebSockety
+    message_dict = {
+        "type": "new_chat_message",
+        "event_title": event.title, # <-- Nazwa wydarzenia (żeby UI wiedziało gdzie pokazać dymek)
+        "message": new_message_response.model_dump(mode='json')
+    }
+
+    # Szukamy wszystkich uczestników wydarzenia, żeby wysłać im powiadomienie
+    participants = session.exec(
+        select(Participant.user_id).where(Participant.event_id == event_id)
+    ).all()
+    user_ids_to_notify = [p_id for p_id in participants]
+    if event.owner_id not in user_ids_to_notify:
+        user_ids_to_notify.append(event.owner_id)
+
+    # Wysłanie przez manager
+    from app.websockets.manager import manager
+    await manager.broadcast_to_users(user_ids_to_notify, message_dict)
+
+    return new_message_response

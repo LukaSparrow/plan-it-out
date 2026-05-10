@@ -40,6 +40,7 @@ import {
   checklistApi,
   expensesApi,
 } from '@/lib/api'
+import { EventChat } from '@/components/events/EventChat'
 import type {
   Event,
   ChecklistItem,
@@ -236,7 +237,7 @@ export default function EventDetailPage() {
           />
         </div>
 
-        {/* ── Right column: Participants + Map (1/3) ── */}
+        {/* ── Right column: Participants + Map + Chat (1/3) ── */}
         <div className="space-y-6">
           <ParticipantsSection
             participants={event.participants}
@@ -244,6 +245,8 @@ export default function EventDetailPage() {
             onInvite={() => setInviteOpen(true)}
           />
           <LocationSection event={event} />
+          
+          <EventChat eventId={event.id} />
         </div>
       </div>
 
