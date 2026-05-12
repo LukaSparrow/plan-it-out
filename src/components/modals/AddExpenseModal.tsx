@@ -23,10 +23,16 @@ export function AddExpenseModal({
   const queryClient = useQueryClient()
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const allUsers: User[] = [organizer, ...participants.map((p) => p.user)]
-  const [splitAmong, setSplitAmong] = useState<string[]>(
-    allUsers.map((u) => u.id),
-  )
+  const members = participants.filter((p) => p.user.id !== organizer.id)
+  const allUsers: User[] = [organizer, ...members.map((p) => p.user)]
+  const rsvpMap = new Map<string, string>([
+    [organizer.id, 'organizer'],
+    ...members.map((p) => [p.user.id, p.rsvp] as [string, string]),
+  ])
+  const [splitAmong, setSplitAmong] = useState<string[]>(() => [
+    organizer.id,
+    ...members.filter((p) => p.rsvp !== 'declined').map((p) => p.user.id),
+  ])
   const [error, setError] = useState<string | null>(null)
 
   const addMutation = useMutation({
@@ -116,7 +122,14 @@ export function AddExpenseModal({
                     alt={userName(u)}
                     className="w-7 h-7 rounded-full bg-surface-2"
                   />
-                  <span className="text-sm text-ink">{userName(u)}</span>
+                  <span className="flex-1 text-sm text-ink">{userName(u)}</span>
+                  {(() => {
+                    const s = rsvpMap.get(u.id)
+                    if (s === 'organizer') return <span className="text-xs text-brand-500 font-medium">Organizator</span>
+                    if (s === 'accepted')  return <span className="text-xs text-green-600 dark:text-green-400">Potwierdził</span>
+                    if (s === 'declined')  return <span className="text-xs text-red-500">Odrzucił</span>
+                    if (s === 'pending')   return <span className="text-xs text-amber-500">Oczekuje</span>
+                  })()}
                 </label>
               )
             })}

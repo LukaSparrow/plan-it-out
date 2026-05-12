@@ -72,6 +72,30 @@ export const eventsApi = {
 
   invite: (id: string, email: string) =>
     api.post(`/events/${id}/invite`, { email }),
+
+  invites: () => api.get('/events/invites'),
+
+  rsvp: (eventId: string, accept: boolean) =>
+    api.post(`/events/${eventId}/rsvp`, { accept }),
+
+  leave: (eventId: string) => api.delete(`/events/${eventId}/leave`),
+}
+
+// ─── Friends endpoints ────────────────────────────────────────────────────────
+export const friendsApi = {
+  list: () => api.get('/friends'),
+
+  requests: () => api.get('/friends/requests'),
+
+  invite: (email: string) => api.post('/friends/invite', { email }),
+
+  accept: (requestId: string) =>
+    api.post(`/friends/requests/${requestId}/accept`),
+
+  decline: (requestId: string) =>
+    api.post(`/friends/requests/${requestId}/decline`),
+
+  remove: (friendId: string) => api.delete(`/friends/${friendId}`),
 }
 
 // ─── Checklist endpoints ──────────────────────────────────────────────────────

@@ -2,13 +2,12 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { Bell, Plus, Search } from 'lucide-react'
+import { Bell, Plus, Search, Check, X, CalendarCheck } from 'lucide-react'
+import { useQuery, useQueries, useMutation, useQueryClient, DefaultError } from '@tanstack/react-query'
+import { eventsApi, checklistApi, expensesApi, friendsApi } from '@/lib/api'
+import { getEventStatus, formatDate, CATEGORY_ICONS } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
-import { useQuery, useQueries } from '@tanstack/react-query'
-import { eventsApi, checklistApi, expensesApi } from '@/lib/api'
-import { DefaultError } from '@tanstack/react-query'
-import { Event, ChecklistItem, Expense } from '@/types'
-import { getEventStatus } from '@/lib/utils'
+import { Event, ChecklistItem, Expense, EventInvite, User } from '@/types'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
@@ -38,6 +37,7 @@ export default function DashboardPage() {
         status: getEventStatus(e.date, e.end_date),
         organizer_id: e.owner_id,
         organizer: { id: e.owner_id, full_name: '', email: '', created_at: '' },
+        participant_count: e.participant_count ?? 0,
         participants: [],
         checklist_items: [],
         expenses: [],
@@ -72,6 +72,35 @@ export default function DashboardPage() {
     })),
   })
 
+  const friendsQuery = useQuery<User[]>({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const res = await friendsApi.list()
+      return res.data
+    },
+    staleTime: 60_000,
+  })
+
+  const eventInvitesQuery = useQuery<EventInvite[]>({
+    queryKey: ['events', 'invites'],
+    queryFn: async () => {
+      const res = await eventsApi.invites()
+      return res.data
+    },
+    staleTime: 30_000,
+  })
+
+  const queryClient = useQueryClient()
+
+  const rsvpMutation = useMutation({
+    mutationFn: ({ eventId, accept }: { eventId: string; accept: boolean }) =>
+      eventsApi.rsvp(eventId, accept),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events', 'invites'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+  })
+
   const stats = useMemo(() => {
     const upcoming = dbEvents.filter((e) => e.status === 'upcoming').length
 
@@ -85,12 +114,12 @@ export default function DashboardPage() {
     return {
       eventsCount: dbEvents.length,
       upcomingCount: upcoming,
-      friendsCount: 0,
+      friendsCount: friendsQuery.data?.length ?? 0,
       checklistDone,
       checklistTotal: allItems.length,
       totalExpenses,
     }
-  }, [dbEvents, checklistQueries, expenseQueries])
+  }, [dbEvents, checklistQueries, expenseQueries, friendsQuery.data])
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -116,21 +145,21 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 flex-shrink-0 animate-fade-up opacity-0 animation-delay-100" style={{ animationFillMode: 'forwards' }}>
           <button
             onClick={openSearch}
-            className="hidden sm:flex btn-ghost items-center gap-2 text-sm"
+            className="hidden lg:flex btn-ghost items-center gap-2 text-sm"
           >
             <Search size={16} />
             Szukaj
           </button>
           <button
             onClick={openPanel}
-            className="relative btn-ghost p-2.5"
+            className="relative btn-ghost p-2.5 hidden lg:flex"
           >
             <Bell size={18} />
             {unreadCount > 0 && (
               <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-brand-500 rounded-full" />
             )}
           </button>
-          <Link href="/dashboard/events/new" className="btn-primary hidden sm:flex items-center gap-2 text-sm">
+          <Link href="/dashboard/events/new" className="btn-primary hidden lg:flex items-center gap-2 text-sm">
             <Plus size={16} />
             Nowe wydarzenie
           </Link>
@@ -139,6 +168,53 @@ export default function DashboardPage() {
 
       {/* ── Stats ── */}
       <DashboardStats {...stats} />
+
+      {/* ── Pending event invites ── */}
+      {(eventInvitesQuery.data?.length ?? 0) > 0 && (
+        <div className="card p-5 animate-fade-up opacity-0" style={{ animationFillMode: 'forwards' }}>
+          <h2 className="font-display text-lg text-ink flex items-center gap-2 mb-4">
+            <CalendarCheck size={18} className="text-brand-500" />
+            Zaproszenia do wydarzeń
+            <span className="text-xs bg-brand-500/10 text-brand-600 dark:text-brand-400 font-medium px-2 py-0.5 rounded-full">
+              {eventInvitesQuery.data!.length}
+            </span>
+          </h2>
+          <ul className="divide-y divide-surface-2">
+            {eventInvitesQuery.data!.map((invite) => (
+              <li key={invite.participant_id} className="flex items-center gap-3 py-3">
+                <span className="text-xl flex-shrink-0">
+                  {CATEGORY_ICONS[invite.event_category as keyof typeof CATEGORY_ICONS] ?? '📌'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-ink truncate">{invite.event_title}</p>
+                  <p className="text-xs text-ink-subtle">
+                    {formatDate(invite.event_date, 'd MMM yyyy')}
+                    {invite.organizer && ` · od ${invite.organizer.full_name}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => rsvpMutation.mutate({ eventId: invite.event_id, accept: true })}
+                    disabled={rsvpMutation.isPending}
+                    className="btn-primary flex items-center gap-1 text-xs py-1.5 px-3 disabled:opacity-50"
+                  >
+                    <Check size={13} />
+                    Akceptuj
+                  </button>
+                  <button
+                    onClick={() => rsvpMutation.mutate({ eventId: invite.event_id, accept: false })}
+                    disabled={rsvpMutation.isPending}
+                    className="btn-ghost flex items-center gap-1 text-xs py-1.5 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
+                  >
+                    <X size={13} />
+                    Odrzuć
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Main grid ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -167,13 +243,24 @@ export default function DashboardPage() {
           </div>
 
           {/* My tasks */}
-          <MyTasks events={dbEvents} currentUserId={user?.id ?? 'usr_1'} />
+          <div className="animate-fade-up opacity-0" style={{ animationDelay: '560ms', animationFillMode: 'forwards' }}>
+            <MyTasks
+              events={dbEvents}
+              currentUserId={user?.id ?? ''}
+              checklistData={checklistQueries.map((q) => q.data)}
+              isLoadingChecklists={checklistQueries.some((q) => q.isLoading)}
+            />
+          </div>
         </div>
 
         {/* Right column */}
         <div className="space-y-6">
-          <UpcomingEvents events={dbEvents} />
-          <ActivityFeed events={dbEvents} />
+          <div className="animate-fade-up opacity-0" style={{ animationDelay: '400ms', animationFillMode: 'forwards' }}>
+            <UpcomingEvents events={dbEvents} />
+          </div>
+          <div className="animate-fade-up opacity-0" style={{ animationDelay: '480ms', animationFillMode: 'forwards' }}>
+            <ActivityFeed events={dbEvents} />
+          </div>
         </div>
       </div>
     </div>

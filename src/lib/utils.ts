@@ -8,11 +8,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(dateStr: string, fmt = 'd MMM yyyy') {
-  return format(parseISO(dateStr), fmt, { locale: pl })
+  return format(parseISO(toUtc(dateStr)), fmt, { locale: pl })
+}
+
+function toUtc(dateStr: string): string {
+  return /[Zz]|[+-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : dateStr + 'Z'
 }
 
 export function formatRelative(dateStr: string) {
-  return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: pl })
+  return formatDistanceToNow(parseISO(toUtc(dateStr)), { addSuffix: true, locale: pl })
 }
 
 export function getEventStatus(dateStr: string, endDateStr?: string) {

@@ -71,16 +71,14 @@ def list_expenses(
     response_model=ExpenseRead,
     status_code=status.HTTP_201_CREATED,
 )
-def add_expense(
+async def add_expense(
     event_id: UUID,
     expense_in: ExpenseCreate,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> Any:
-    _check_event_access(session, event_id, current_user)
+    event = _check_event_access(session, event_id, current_user)
 
-    # Walidacja - wszyscy "split_among" muszą istnieć i powinni być uczestnikami eventu
-    # (sprawdzenie istnienia w bazie wystarczy MVP - rygorystyczność można dorzucić później)
     found_users = session.exec(
         select(User).where(User.id.in_(expense_in.split_among))
     ).all()
@@ -98,13 +96,27 @@ def add_expense(
         paid_by_id=current_user.id,
     )
     session.add(expense)
-    session.flush()  # Potrzebujemy ID dla splitów
+    session.flush()
 
-    for user_id in set(expense_in.split_among):  # set() na wypadek duplikatów
+    split_ids = set(expense_in.split_among)
+    for user_id in split_ids:
         session.add(ExpenseSplit(expense_id=expense.id, user_id=user_id))
 
     session.commit()
     session.refresh(expense)
+
+    notify_ids = [uid for uid in split_ids if uid != current_user.id]
+    if notify_ids:
+        from app.websockets.manager import manager
+        await manager.broadcast_to_users(notify_ids, {
+            "type": "expense_added",
+            "event_id": str(event_id),
+            "event_title": event.title,
+            "description": expense_in.description,
+            "amount": float(expense_in.amount),
+            "payer_name": current_user.full_name,
+        })
+
     return _expense_to_read(expense)
 
 

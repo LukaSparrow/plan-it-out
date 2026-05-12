@@ -2,36 +2,33 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare, Square, Plus, Trash2, Loader2 } from 'lucide-react'
+import { CheckSquare, Square, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { checklistApi } from '@/lib/api'
 import { avatarUrl, userName } from '@/lib/userHelpers'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import { EmptyHint } from '@/components/ui/EmptyHint'
 import { InlineError } from '@/components/ui/InlineError'
-import type { ChecklistItem } from '@/types'
+import { AddTaskModal } from '@/components/modals/AddTaskModal'
+import type { ChecklistItem, Participant, User } from '@/types'
 
 export function ChecklistSection({
   eventId,
   items,
   isLoading,
   isError,
+  participants = [],
+  organizer,
 }: {
   eventId: string
   items: ChecklistItem[]
   isLoading: boolean
   isError: boolean
+  participants?: Participant[]
+  organizer?: User
 }) {
   const queryClient = useQueryClient()
-  const [newLabel, setNewLabel] = useState('')
-
-  const addMutation = useMutation({
-    mutationFn: (label: string) => checklistApi.add(eventId, label),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', eventId, 'checklist'] })
-      setNewLabel('')
-    },
-  })
+  const [addOpen, setAddOpen] = useState(false)
 
   const toggleMutation = useMutation({
     mutationFn: (itemId: string) => checklistApi.toggle(eventId, itemId),
@@ -66,25 +63,28 @@ export function ChecklistSection({
   const total = items.length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    const label = newLabel.trim()
-    if (!label) return
-    addMutation.mutate(label)
-  }
-
   return (
+    <>
     <section className="card p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-xl text-ink flex items-center gap-2">
           <CheckSquare size={18} className="text-brand-500" />
           Lista zadań
         </h2>
-        {total > 0 && (
-          <span className="text-xs text-ink-subtle">
-            {done}/{total} ({pct}%)
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {total > 0 && (
+            <span className="text-xs text-ink-subtle">
+              {done}/{total} ({pct}%)
+            </span>
+          )}
+          <button
+            onClick={() => setAddOpen(true)}
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+          >
+            <Plus size={14} />
+            Dodaj
+          </button>
+        </div>
       </div>
 
       {total > 0 && (
@@ -95,29 +95,6 @@ export function ChecklistSection({
           />
         </div>
       )}
-
-      <form onSubmit={handleAdd} className="flex gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Dodaj zadanie… np. „Kupić namiot"
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          className="input-field flex-1"
-          disabled={addMutation.isPending}
-        />
-        <button
-          type="submit"
-          disabled={!newLabel.trim() || addMutation.isPending}
-          className="btn-primary flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {addMutation.isPending ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Plus size={16} />
-          )}
-          Dodaj
-        </button>
-      </form>
 
       {isLoading ? (
         <ListSkeleton rows={3} />
@@ -156,12 +133,14 @@ export function ChecklistSection({
                 {item.label}
               </span>
               {item.assigned_to && (
-                <img
-                  src={avatarUrl(item.assigned_to)}
-                  alt={userName(item.assigned_to)}
-                  title={`Przypisane: ${userName(item.assigned_to)}`}
-                  className="w-6 h-6 rounded-full bg-surface-2"
-                />
+                <div className="flex items-center gap-1.5 flex-shrink-0 text-xs text-ink-subtle">
+                  <img
+                    src={avatarUrl(item.assigned_to)}
+                    alt={userName(item.assigned_to)}
+                    className="w-5 h-5 rounded-full bg-surface-2"
+                  />
+                  <span>{userName(item.assigned_to)}</span>
+                </div>
               )}
               <button
                 onClick={() => deleteMutation.mutate(item.id)}
@@ -175,5 +154,15 @@ export function ChecklistSection({
         </ul>
       )}
     </section>
+
+    {addOpen && organizer && (
+      <AddTaskModal
+        eventId={eventId}
+        participants={participants}
+        organizer={organizer}
+        onClose={() => setAddOpen(false)}
+      />
+    )}
+    </>
   )
 }

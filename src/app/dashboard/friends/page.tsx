@@ -1,121 +1,103 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useQuery, useQueries } from '@tanstack/react-query'
-import { Users, Search, Calendar, Mail } from 'lucide-react'
-import { eventsApi } from '@/lib/api'
-import { useAuthStore } from '@/lib/store'
-import { CATEGORY_ICONS, formatDate, getEventStatus } from '@/lib/utils'
-import { avatarUrl } from '@/lib/userHelpers'
-import type { User } from '@/types'
-
-interface FriendEntry {
-  user: User
-  sharedEvents: { id: string; title: string; date: string; category: string }[]
-}
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Users, Search, Mail, UserPlus, Check, X, Loader2, Send, UserMinus } from 'lucide-react'
+import { friendsApi } from '@/lib/api'
+import { avatarUrl, userName } from '@/lib/userHelpers'
+import type { User, FriendRequest } from '@/types'
 
 export default function FriendsPage() {
-  const { user: currentUser } = useAuthStore()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteError, setInviteError] = useState('')
+  const [inviteSuccess, setInviteSuccess] = useState('')
 
-  const eventsListQuery = useQuery({
-    queryKey: ['events'],
+  const friendsQuery = useQuery<User[]>({
+    queryKey: ['friends'],
     queryFn: async () => {
-      const res = await eventsApi.list()
-      return (res.data as any[]).map((e) => ({
-        id: e.id as string,
-        title: e.title as string,
-        date: e.date as string,
-        category: (e.category ?? 'other') as string,
-        status: getEventStatus(e.date as string, e.end_date as string | undefined),
-        location: e.location as string,
-        organizer_id: e.owner_id as string,
-        organizer: { id: e.owner_id, full_name: '', email: '', created_at: '' },
-        participants: [],
-        checklist_items: [],
-        expenses: [],
-        created_at: e.created_at as string,
-      }))
+      const res = await friendsApi.list()
+      return res.data
     },
   })
 
-  const eventIds = eventsListQuery.data?.map((e) => e.id) ?? []
-
-  const eventDetailQueries = useQueries({
-    queries: eventIds.map((id) => ({
-      queryKey: ['events', id],
-      queryFn: async () => {
-        const res = await eventsApi.get(id)
-        return res.data as any
-      },
-    })),
+  const requestsQuery = useQuery<FriendRequest[]>({
+    queryKey: ['friends', 'requests'],
+    queryFn: async () => {
+      const res = await friendsApi.requests()
+      return res.data
+    },
   })
 
-  const isLoading =
-    eventsListQuery.isLoading || eventDetailQueries.some((q) => q.isLoading)
+  const inviteMutation = useMutation({
+    mutationFn: (email: string) => friendsApi.invite(email),
+    onSuccess: () => {
+      setInviteEmail('')
+      setInviteError('')
+      setInviteSuccess('Zaproszenie wysłane!')
+      setTimeout(() => setInviteSuccess(''), 3000)
+    },
+    onError: (err: any) => {
+      setInviteSuccess('')
+      setInviteError(err?.response?.data?.detail ?? 'Nie udało się wysłać zaproszenia.')
+    },
+  })
 
-  const friends = useMemo<FriendEntry[]>(() => {
-    const map = new Map<string, FriendEntry>()
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => friendsApi.accept(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] })
+    },
+  })
 
-    eventDetailQueries.forEach((q, idx) => {
-      if (!q.data) return
-      const ev = q.data
-      const participants: any[] = ev.participants ?? []
+  const declineMutation = useMutation({
+    mutationFn: (id: string) => friendsApi.decline(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] })
+    },
+  })
 
-      participants.forEach((p: any) => {
-        const u: User = p.user
-        if (!u || u.id === currentUser?.id) return
+  const removeMutation = useMutation({
+    mutationFn: (friendId: string) => friendsApi.remove(friendId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] })
+    },
+  })
 
-        const eventEntry = {
-          id: eventIds[idx],
-          title: ev.title,
-          date: ev.date,
-          category: ev.category ?? 'other',
-        }
+  const handleInvite = (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = inviteEmail.trim()
+    if (!email) return
+    setInviteError('')
+    inviteMutation.mutate(email)
+  }
 
-        const existing = map.get(u.id)
-        if (existing) {
-          existing.sharedEvents.push(eventEntry)
-        } else {
-          map.set(u.id, { user: u, sharedEvents: [eventEntry] })
-        }
-      })
-    })
+  const friends = friendsQuery.data ?? []
+  const requests = requestsQuery.data ?? []
 
-    return Array.from(map.values()).sort(
-      (a, b) => b.sharedEvents.length - a.sharedEvents.length,
-    )
-  }, [eventDetailQueries, currentUser?.id, eventIds])
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return friends
-    const q = search.toLowerCase()
-    return friends.filter(
-      (f) =>
-        f.user.full_name?.toLowerCase().includes(q) ||
-        f.user.email?.toLowerCase().includes(q),
-    )
-  }, [friends, search])
+  const filtered = search.trim()
+    ? friends.filter(
+        (f) =>
+          f.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+          f.email?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : friends
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-up">
-      <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-up space-y-8">
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-3xl text-ink">Znajomi</h1>
           <p className="text-ink-muted mt-1">
-            {isLoading
+            {friendsQuery.isLoading
               ? 'Ładowanie…'
-              : friends.length === 0
-                ? 'Nie masz jeszcze znajomych w wydarzeniach'
-                : `${friends.length} ${friends.length === 1 ? 'osoba' : 'osób'} z Twoich wydarzeń`}
+              : `${friends.length} ${friends.length === 1 ? 'znajomy' : 'znajomych'}`}
           </p>
         </div>
-
         <div className="relative">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-          />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" />
           <input
             type="text"
             placeholder="Szukaj znajomych…"
@@ -126,19 +108,104 @@ export default function FriendsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {/* ── Invite form ── */}
+      <div className="card p-5">
+        <h2 className="font-display text-lg text-ink mb-4 flex items-center gap-2">
+          <UserPlus size={18} className="text-brand-500" />
+          Zaproś znajomego
+        </h2>
+        <form onSubmit={handleInvite} className="flex gap-2">
+          <input
+            type="email"
+            placeholder="Adres e-mail…"
+            value={inviteEmail}
+            onChange={(e) => { setInviteEmail(e.target.value); setInviteError('') }}
+            className="input-field flex-1"
+            disabled={inviteMutation.isPending}
+          />
+          <button
+            type="submit"
+            disabled={!inviteEmail.trim() || inviteMutation.isPending}
+            className="btn-primary flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {inviteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            Wyślij
+          </button>
+        </form>
+        {inviteError && <p className="mt-2 text-sm text-red-500">{inviteError}</p>}
+        {inviteSuccess && <p className="mt-2 text-sm text-green-600 dark:text-green-400">{inviteSuccess}</p>}
+      </div>
+
+      {/* ── Pending requests ── */}
+      {(requestsQuery.isLoading || requests.length > 0) && (
+        <div className="card p-5">
+          <h2 className="font-display text-lg text-ink mb-4 flex items-center gap-2">
+            <Mail size={18} className="text-brand-500" />
+            Oczekujące zaproszenia
+            {requests.length > 0 && (
+              <span className="text-xs bg-brand-500/10 text-brand-600 dark:text-brand-400 font-medium px-2 py-0.5 rounded-full">
+                {requests.length}
+              </span>
+            )}
+          </h2>
+          {requestsQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-ink-muted py-2">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-sm">Ładowanie…</span>
+            </div>
+          ) : (
+            <ul className="divide-y divide-surface-2">
+              {requests.map((req) => (
+                <li key={req.id} className="flex items-center gap-3 py-3">
+                  <img
+                    src={avatarUrl(req.requester)}
+                    alt={userName(req.requester)}
+                    className="w-10 h-10 rounded-full bg-surface-2 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-ink truncate">{userName(req.requester)}</p>
+                    <p className="text-xs text-ink-subtle truncate flex items-center gap-1">
+                      <Mail size={10} />
+                      {req.requester.email}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => acceptMutation.mutate(req.id)}
+                      disabled={acceptMutation.isPending || declineMutation.isPending}
+                      className="btn-primary flex items-center gap-1 text-xs py-1.5 px-3 disabled:opacity-50"
+                    >
+                      <Check size={13} />
+                      Akceptuj
+                    </button>
+                    <button
+                      onClick={() => declineMutation.mutate(req.id)}
+                      disabled={acceptMutation.isPending || declineMutation.isPending}
+                      className="btn-ghost flex items-center gap-1 text-xs py-1.5 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
+                    >
+                      <X size={13} />
+                      Odrzuć
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* ── Friends list ── */}
+      {friendsQuery.isLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card p-5 animate-pulse">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-surface-2 flex-shrink-0" />
                 <div className="space-y-2 flex-1">
                   <div className="h-4 bg-surface-2 rounded w-3/4" />
                   <div className="h-3 bg-surface-2 rounded w-1/2" />
                 </div>
               </div>
-              <div className="h-3 bg-surface-2 rounded w-full mb-2" />
-              <div className="h-3 bg-surface-2 rounded w-2/3" />
             </div>
           ))}
         </div>
@@ -149,7 +216,7 @@ export default function FriendsPage() {
             <>
               <p className="text-ink font-medium">Brak znajomych</p>
               <p className="text-sm text-ink-muted mt-1">
-                Zaproś kogoś do swojego pierwszego wydarzenia!
+                Wyślij zaproszenie powyżej, żeby dodać pierwszego znajomego.
               </p>
             </>
           ) : (
@@ -161,54 +228,34 @@ export default function FriendsPage() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(({ user, sharedEvents }) => (
-            <div
-              key={user.id}
-              className="card p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-3 mb-4">
+          {filtered.map((friend) => (
+            <div key={friend.id} className="card p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
                 <img
-                  src={avatarUrl(user)}
-                  alt={user.full_name}
+                  src={avatarUrl(friend)}
+                  alt={userName(friend)}
                   className="w-12 h-12 rounded-full bg-surface-2 flex-shrink-0"
                 />
-                <div className="min-w-0">
-                  <p className="font-medium text-ink truncate">{user.full_name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-ink truncate">{userName(friend)}</p>
                   <p className="text-xs text-ink-subtle flex items-center gap-1 truncate">
                     <Mail size={11} />
-                    {user.email}
+                    {friend.email}
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    if (confirm(`Usunąć ${userName(friend)} ze znajomych?`)) {
+                      removeMutation.mutate(friend.id)
+                    }
+                  }}
+                  disabled={removeMutation.isPending}
+                  className="flex-shrink-0 p-1.5 rounded-lg text-ink-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                  title="Usuń znajomego"
+                >
+                  <UserMinus size={15} />
+                </button>
               </div>
-
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-surface-2">
-                <Calendar size={13} className="text-brand-500 flex-shrink-0" />
-                <span className="text-xs text-ink-muted">
-                  <span className="font-semibold text-ink">{sharedEvents.length}</span>{' '}
-                  {sharedEvents.length === 1
-                    ? 'wspólne wydarzenie'
-                    : 'wspólnych wydarzeń'}
-                </span>
-              </div>
-
-              <ul className="space-y-1.5">
-                {sharedEvents.slice(0, 3).map((ev) => (
-                  <li key={ev.id} className="flex items-center gap-2 text-xs text-ink-muted">
-                    <span className="flex-shrink-0">
-                      {CATEGORY_ICONS[ev.category as keyof typeof CATEGORY_ICONS] ?? '📌'}
-                    </span>
-                    <span className="truncate">{ev.title}</span>
-                    <span className="ml-auto flex-shrink-0 text-ink-subtle">
-                      {formatDate(ev.date, 'd MMM')}
-                    </span>
-                  </li>
-                ))}
-                {sharedEvents.length > 3 && (
-                  <li className="text-xs text-ink-subtle pl-5">
-                    +{sharedEvents.length - 3} więcej
-                  </li>
-                )}
-              </ul>
             </div>
           ))}
         </div>

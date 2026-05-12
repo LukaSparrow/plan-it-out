@@ -50,25 +50,31 @@ export function EventCard({ event, className }: EventCardProps) {
         {/* Footer */}
         <div className="flex items-center justify-between">
           {/* Avatars */}
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {(event.participants ?? []).slice(0, 4).map((p) => (
-                <img
-                  key={p.id}
-                  src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.name}`}
-                  className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-2"
-                  alt={p.user.name}
-                  title={p.user.name}
-                />
-              ))}
-              {(event.participants ?? []).length > 4 && (
-                <div className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-3 flex items-center justify-center text-[10px] font-medium text-ink-muted">
-                  +{event.participants.length - 4}
+          {(() => {
+            const active = (event.participants ?? []).filter((p) => p.rsvp !== 'declined')
+            const count = active.length || event.participant_count || 0
+            return (
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {active.slice(0, 4).map((p) => (
+                    <img
+                      key={p.id}
+                      src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}`}
+                      className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-2"
+                      alt={p.user.full_name}
+                      title={p.user.full_name}
+                    />
+                  ))}
+                  {active.length > 4 && (
+                    <div className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-3 flex items-center justify-center text-[10px] font-medium text-ink-muted">
+                      +{active.length - 4}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <span className="text-xs text-ink-subtle">{(event.participants ?? []).length} os.</span>
-          </div>
+                <span className="text-xs text-ink-subtle">{count} os.</span>
+              </div>
+            )
+          })()}
 
           {/* Checklist progress */}
           {totalItems > 0 && (

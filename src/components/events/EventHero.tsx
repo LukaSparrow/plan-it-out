@@ -65,7 +65,7 @@ export function EventHero({ event }: { event: Event }) {
           <div className="flex items-center gap-2">
             <Users size={15} className="text-brand-500" />
             <span className="text-ink">
-              {event.participants.length + 1} osób
+              {event.participants.filter((p) => p.rsvp !== 'declined').length} osób
             </span>
           </div>
         </div>

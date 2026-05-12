@@ -55,19 +55,28 @@ def list_checklist(
     response_model=ChecklistItemRead,
     status_code=status.HTTP_201_CREATED,
 )
-def add_checklist_item(
+async def add_checklist_item(
     event_id: UUID,
     item_in: ChecklistItemCreate,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> Any:
-    _check_event_access(session, event_id, current_user)
+    event = _check_event_access(session, event_id, current_user)
 
-    # Jeśli ktoś jest przypisany - sprawdź czy w ogóle uczestniczy w wydarzeniu
+    assigned_user = None
     if item_in.assigned_to:
         assigned_user = session.get(User, item_in.assigned_to)
         if not assigned_user:
             raise HTTPException(status_code=400, detail="Assigned user not found")
+        if assigned_user.id != event.owner_id:
+            is_event_member = session.exec(
+                select(Participant).where(
+                    Participant.event_id == event_id,
+                    Participant.user_id == assigned_user.id,
+                )
+            ).first()
+            if not is_event_member:
+                raise HTTPException(status_code=400, detail="Assigned user is not a participant of this event")
 
     item = ChecklistItem(
         event_id=event_id,
@@ -78,6 +87,17 @@ def add_checklist_item(
     session.add(item)
     session.commit()
     session.refresh(item)
+
+    if assigned_user and assigned_user.id != current_user.id:
+        from app.websockets.manager import manager
+        await manager.send_personal_message({
+            "type": "task_assigned",
+            "task_label": item_in.label,
+            "event_id": str(event_id),
+            "event_title": event.title,
+            "assigner_name": current_user.full_name,
+        }, assigned_user.id)
+
     return item
 
 

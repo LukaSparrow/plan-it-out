@@ -2,10 +2,10 @@ import { create } from 'zustand'
 
 export interface AppNotification {
   id: string
-  eventId: string
-  eventTitle: string
-  senderName: string
-  content: string
+  type: 'chat' | 'friend_invite' | 'event_invite' | 'task_assigned' | 'expense_added'
+  link: string
+  title: string
+  subtitle: string
   createdAt: string
   read: boolean
 }
