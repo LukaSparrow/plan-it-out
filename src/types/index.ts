@@ -41,6 +41,7 @@ export interface Event {
   status: EventStatus
   organizer_id: string
   organizer: User
+  participant_count?: number
   participants: Participant[]
   checklist_items: ChecklistItem[]
   expenses: Expense[]
@@ -83,6 +84,23 @@ export interface Balance {
   from: User
   to: User
   amount: number
+}
+
+// ─── Friends ─────────────────────────────────────────────────────────────────
+export interface FriendRequest {
+  id: string
+  requester: User
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
+
+export interface EventInvite {
+  participant_id: string
+  event_id: string
+  event_title: string
+  event_date: string
+  event_category: EventCategory
+  organizer: User | null
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────

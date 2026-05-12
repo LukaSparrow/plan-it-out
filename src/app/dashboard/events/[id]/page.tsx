@@ -13,10 +13,14 @@ import {
   Pencil,
   Trash2,
   UserPlus,
+  LogOut,
   Loader2,
   AlertCircle,
+  CalendarCheck,
+  X,
 } from 'lucide-react'
 import { getEventStatus } from '@/lib/utils'
+import { useAuthStore } from '@/lib/store'
 import { eventsApi, checklistApi, expensesApi } from '@/lib/api'
 import { EventChat } from '@/components/events/EventChat'
 import { EventHero } from '@/components/events/EventHero'
@@ -32,6 +36,7 @@ export default function EventDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
   const eventId = params.id
 
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -100,8 +105,24 @@ export default function EventDetailPage() {
     retry: 1,
   })
 
+  const rsvpMutation = useMutation({
+    mutationFn: (accept: boolean) => eventsApi.rsvp(eventId, accept),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => eventsApi.delete(eventId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      router.push('/dashboard/events')
+    },
+  })
+
+  const leaveMutation = useMutation({
+    mutationFn: () => eventsApi.leave(eventId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
       router.push('/dashboard/events')
@@ -122,6 +143,8 @@ export default function EventDetailPage() {
   }
 
   const event = eventQuery.data
+  const myParticipant = event.participants.find((p) => p.user.id === user?.id)
+  const isPendingRsvp = myParticipant?.rsvp === 'pending'
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-up">
@@ -142,33 +165,85 @@ export default function EventDetailPage() {
             <UserPlus size={14} />
             Zaproś
           </button>
-          <Link
-            href={`/dashboard/events/${event.id}/edit`}
-            className="btn-ghost flex items-center gap-1.5 text-sm"
-          >
-            <Pencil size={14} />
-            Edytuj
-          </Link>
-          <button
-            onClick={() => {
-              if (confirm(`Na pewno usunąć "${event.title}"? Tej akcji nie można cofnąć.`)) {
-                deleteMutation.mutate()
-              }
-            }}
-            disabled={deleteMutation.isPending}
-            className="btn-ghost flex items-center gap-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
-          >
-            {deleteMutation.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Trash2 size={14} />
-            )}
-            Usuń
-          </button>
+          {user?.id !== event.organizer_id && (
+            <button
+              onClick={() => {
+                if (confirm('Na pewno opuścić to wydarzenie?')) {
+                  leaveMutation.mutate()
+                }
+              }}
+              disabled={leaveMutation.isPending}
+              className="btn-ghost flex items-center gap-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
+            >
+              {leaveMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <LogOut size={14} />
+              )}
+              Opuść
+            </button>
+          )}
+          {user?.id === event.organizer_id && (
+            <>
+              <Link
+                href={`/dashboard/events/${event.id}/edit`}
+                className="btn-ghost flex items-center gap-1.5 text-sm"
+              >
+                <Pencil size={14} />
+                Edytuj
+              </Link>
+              <button
+                onClick={() => {
+                  if (confirm(`Na pewno usunąć "${event.title}"? Tej akcji nie można cofnąć.`)) {
+                    deleteMutation.mutate()
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="btn-ghost flex items-center gap-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                Usuń
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <EventHero event={event} />
+
+      {isPendingRsvp && (
+        <div className="mt-6 card p-4 sm:p-5 border-l-4 border-l-brand-500 flex items-center justify-between gap-4 animate-fade-up">
+          <div className="flex items-center gap-3">
+            <CalendarCheck size={20} className="text-brand-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-ink">Zostałeś zaproszony na to wydarzenie</p>
+              <p className="text-xs text-ink-muted mt-0.5">Zaakceptuj lub odrzuć zaproszenie</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => rsvpMutation.mutate(false)}
+              disabled={rsvpMutation.isPending}
+              className="btn-ghost text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {rsvpMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+              Odrzuć
+            </button>
+            <button
+              onClick={() => rsvpMutation.mutate(true)}
+              disabled={rsvpMutation.isPending}
+              className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {rsvpMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />}
+              Zaakceptuj
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">
@@ -178,6 +253,8 @@ export default function EventDetailPage() {
             items={checklistQuery.data ?? []}
             isLoading={checklistQuery.isLoading}
             isError={checklistQuery.isError}
+            participants={event.participants}
+            organizer={event.organizer}
           />
           <ExpensesSection
             eventId={event.id}
@@ -200,7 +277,7 @@ export default function EventDetailPage() {
       </div>
 
       {inviteOpen && (
-        <InviteModal eventId={event.id} onClose={() => setInviteOpen(false)} />
+        <InviteModal eventId={event.id} participants={event.participants} onClose={() => setInviteOpen(false)} />
       )}
       {expenseOpen && (
         <AddExpenseModal

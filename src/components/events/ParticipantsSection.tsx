@@ -23,8 +23,9 @@ export function ParticipantsSection({
   organizer: User
   onInvite: () => void
 }) {
-  const accepted = participants.filter((p) => p.rsvp === 'accepted').length
-  const pending = participants.filter((p) => p.rsvp === 'pending').length
+  const members = participants.filter((p) => p.user.id !== organizer.id)
+  const accepted = members.filter((p) => p.rsvp === 'accepted').length
+  const pending = members.filter((p) => p.rsvp === 'pending').length
 
   return (
     <section className="card p-5 sm:p-6">
@@ -42,7 +43,7 @@ export function ParticipantsSection({
         </button>
       </div>
 
-      {participants.length > 0 && (
+      {members.length > 0 && (
         <div className="flex gap-2 mb-4 text-xs">
           <span className="px-2 py-1 rounded-full bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400">
             ✓ {accepted} potwierdzonych
@@ -71,7 +72,7 @@ export function ParticipantsSection({
           <Sparkles size={14} className="text-brand-500" />
         </li>
 
-        {participants.map((p) => (
+        {participants.filter((p) => p.user.id !== organizer.id).map((p) => (
           <li
             key={p.id}
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-1 transition-colors"
@@ -93,7 +94,7 @@ export function ParticipantsSection({
         ))}
       </ul>
 
-      {participants.length === 0 && (
+      {members.length === 0 && (
         <button
           onClick={onInvite}
           className="w-full mt-3 py-3 border border-dashed border-surface-3 rounded-xl text-sm text-ink-muted hover:text-brand-500 hover:border-brand-400 transition-colors flex items-center justify-center gap-2"

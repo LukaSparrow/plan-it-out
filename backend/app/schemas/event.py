@@ -35,6 +35,7 @@ class EventRead(EventBase):
     id: UUID
     owner_id: UUID
     created_at: datetime
+    participant_count: int = 0
 
 
 class EventReadFull(EventRead):
@@ -48,3 +49,17 @@ class EventReadFull(EventRead):
     participants: List[ParticipantRead] = []
 
     model_config = {"from_attributes": True}
+
+
+class EventInviteRead(BaseModel):
+    """Oczekujące zaproszenie do wydarzenia (rsvp=PENDING)."""
+    participant_id: UUID
+    event_id: UUID
+    event_title: str
+    event_date: datetime
+    event_category: str
+    organizer: Optional[UserPublic] = None
+
+
+class RsvpAction(BaseModel):
+    accept: bool

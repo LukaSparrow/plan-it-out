@@ -21,6 +21,7 @@ from app.models.participant import Participant
 from app.models.checklist import ChecklistItem
 from app.models.expense import Expense, ExpenseSplit
 from app.models.chat import ChatMessage
+from app.models.friendship import Friendship
 from sqlmodel import SQLModel
 
 config = context.config

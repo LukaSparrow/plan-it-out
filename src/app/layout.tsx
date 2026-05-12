@@ -47,7 +47,21 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <QueryProvider>
             {children}
-            <Toaster richColors position="top-right" />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                classNames: {
+                  toast:       'font-body bg-surface-1 border border-surface-2 shadow-card-lg rounded-xl text-ink',
+                  title:       'text-sm font-medium text-ink',
+                  description: 'text-xs text-ink-muted',
+                  info:        '!border-l-2 !border-l-brand-500',
+                  success:     '!border-l-2 !border-l-green-500',
+                  error:       '!border-l-2 !border-l-red-500',
+                  warning:     '!border-l-2 !border-l-amber-500',
+                  icon:        'text-brand-500',
+                },
+              }}
+            />
           </QueryProvider>
         </ThemeProvider>
       </body>

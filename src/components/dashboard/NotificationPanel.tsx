@@ -2,9 +2,61 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, MessageSquare, X } from 'lucide-react'
-import { useNotificationStore } from '@/lib/notificationStore'
+import { Bell, MessageSquare, UserPlus, CalendarCheck, ClipboardList, Receipt, X } from 'lucide-react'
+import { useNotificationStore, type AppNotification } from '@/lib/notificationStore'
 import { formatRelative } from '@/lib/utils'
+
+const TYPE_CONFIG = {
+  chat: {
+    Icon: MessageSquare,
+    color: 'text-brand-500',
+    bg: 'bg-brand-50 dark:bg-brand-950/30',
+  },
+  friend_invite: {
+    Icon: UserPlus,
+    color: 'text-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-950/30',
+  },
+  event_invite: {
+    Icon: CalendarCheck,
+    color: 'text-green-500',
+    bg: 'bg-green-50 dark:bg-green-950/30',
+  },
+  task_assigned: {
+    Icon: ClipboardList,
+    color: 'text-amber-500',
+    bg: 'bg-amber-50 dark:bg-amber-950/30',
+  },
+  expense_added: {
+    Icon: Receipt,
+    color: 'text-violet-500',
+    bg: 'bg-violet-50 dark:bg-violet-950/30',
+  },
+}
+
+function NotificationItem({ n, onClick }: { n: AppNotification; onClick: () => void }) {
+  const cfg = TYPE_CONFIG[n.type]
+  return (
+    <li>
+      <button
+        onClick={onClick}
+        className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-surface-2 transition-colors text-left"
+      >
+        <span className={`flex-shrink-0 mt-0.5 p-1.5 rounded-lg ${cfg.bg}`}>
+          <cfg.Icon size={14} className={cfg.color} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-ink truncate">{n.title}</p>
+          <p className="text-xs text-ink-muted truncate mt-0.5">{n.subtitle}</p>
+          <p className="text-xs text-ink-subtle mt-1">{formatRelative(n.createdAt)}</p>
+        </div>
+        {!n.read && (
+          <span className="flex-shrink-0 w-2 h-2 rounded-full bg-brand-500 mt-1.5" />
+        )}
+      </button>
+    </li>
+  )
+}
 
 export function NotificationPanel() {
   const { notifications, panelOpen, closePanel, markAllRead } = useNotificationStore()
@@ -27,57 +79,42 @@ export function NotificationPanel() {
 
   return (
     <>
-      {/* Transparent backdrop to catch outside clicks */}
-      <div className="fixed inset-0 z-40" onClick={closePanel} />
+      <div
+        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm animate-fade-in"
+        onClick={closePanel}
+      />
 
-      <div className="fixed top-14 right-4 z-50 w-80 bg-surface-1 border border-surface-2 rounded-2xl shadow-2xl overflow-hidden animate-fade-up">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-2">
-          <h3 className="font-medium text-ink text-sm">Powiadomienia</h3>
+      <div className="fixed right-0 top-0 h-full w-80 z-50 bg-surface-1 border-l border-surface-2 shadow-2xl flex flex-col animate-slide-left">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-2 flex-shrink-0">
+          <h3 className="font-display text-base text-ink">Powiadomienia</h3>
           <button
             onClick={closePanel}
-            className="text-ink-subtle hover:text-ink transition-colors"
+            className="text-ink-subtle hover:text-ink transition-colors p-1 rounded-lg hover:bg-surface-2"
+            aria-label="Zamknij"
           >
             <X size={16} />
           </button>
         </div>
 
         {notifications.length === 0 ? (
-          <div className="px-4 py-10 text-center">
-            <Bell size={28} className="mx-auto text-ink-subtle mb-2" />
-            <p className="text-sm text-ink-muted">Brak powiadomień</p>
-            <p className="text-xs text-ink-subtle mt-1">
-              Pojawią się tu wiadomości z Twoich wydarzeń.
+          <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+            <Bell size={32} className="text-ink-subtle mb-3" />
+            <p className="text-sm font-medium text-ink-muted">Brak powiadomień</p>
+            <p className="text-xs text-ink-subtle mt-1 max-w-[200px]">
+              Tu pojawią się wiadomości, zaproszenia do wydarzeń i do znajomych.
             </p>
           </div>
         ) : (
-          <ul className="max-h-96 overflow-y-auto divide-y divide-surface-2">
+          <ul className="flex-1 overflow-y-auto divide-y divide-surface-2">
             {notifications.map((n) => (
-              <li key={n.id}>
-                <button
-                  onClick={() => {
-                    router.push(`/dashboard/events/${n.eventId}`)
-                    closePanel()
-                  }}
-                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left"
-                >
-                  <MessageSquare
-                    size={15}
-                    className="text-brand-500 flex-shrink-0 mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-ink-muted truncate">
-                      {n.eventTitle}
-                    </p>
-                    <p className="text-sm text-ink truncate">
-                      <span className="font-medium">{n.senderName}:</span>{' '}
-                      {n.content}
-                    </p>
-                    <p className="text-xs text-ink-subtle mt-0.5">
-                      {formatRelative(n.createdAt)}
-                    </p>
-                  </div>
-                </button>
-              </li>
+              <NotificationItem
+                key={n.id}
+                n={n}
+                onClick={() => {
+                  router.push(n.link)
+                  closePanel()
+                }}
+              />
             ))}
           </ul>
         )}

@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { CheckSquare, Square, Loader2 } from 'lucide-react'
-import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { checklistApi } from '@/lib/api'
 import type { Event, ChecklistItem } from '@/types'
 import { cn } from '@/lib/utils'
@@ -11,32 +11,23 @@ import { cn } from '@/lib/utils'
 interface MyTasksProps {
   events: Event[]
   currentUserId: string
+  checklistData: (ChecklistItem[] | undefined)[]
+  isLoadingChecklists: boolean
 }
 
-export function MyTasks({ events, currentUserId }: MyTasksProps) {
+export function MyTasks({ events, currentUserId, checklistData, isLoadingChecklists }: MyTasksProps) {
   const queryClient = useQueryClient()
 
-  const checklistQueries = useQueries({
-    queries: events.map((e) => ({
-      queryKey: ['events', e.id, 'checklist'],
-      queryFn: async () => {
-        const res = await checklistApi.list(e.id)
-        return res.data as ChecklistItem[]
-      },
-      staleTime: 60_000,
-    })),
-  })
-
-  const isLoading = checklistQueries.some((q) => q.isLoading)
+  const isLoading = isLoadingChecklists
 
   const allTasks = useMemo(() => {
     return events.flatMap((event, i) => {
-      const items = checklistQueries[i]?.data ?? []
+      const items = checklistData[i] ?? []
       return items
         .filter((item) => item.assigned_to?.id === currentUserId)
         .map((item) => ({ ...item, eventTitle: event.title, eventId: event.id }))
     })
-  }, [events, checklistQueries, currentUserId])
+  }, [events, checklistData, currentUserId])
 
   const pendingCount = allTasks.filter((t) => !t.is_done).length
 

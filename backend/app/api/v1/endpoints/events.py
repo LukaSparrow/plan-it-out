@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.event import Event
 from app.models.participant import Participant, ParticipantRole, RsvpStatus
 from app.models.chat import ChatMessage
-from app.schemas.event import EventCreate, EventUpdate, EventRead, EventReadFull
+from app.schemas.event import EventCreate, EventUpdate, EventRead, EventReadFull, EventInviteRead, RsvpAction
 from app.schemas.participant import InviteCreate, ParticipantRead
 from app.schemas.chat import ChatMessageResponse, ChatMessageCreate
 
@@ -58,7 +58,10 @@ def read_events(
     """Lista eventów: te których jestem ownerem ORAZ te do których jestem zaproszony."""
     # IDs eventów, w których uczestniczę (poza tym że jestem ownerem)
     participating_ids = session.exec(
-        select(Participant.event_id).where(Participant.user_id == current_user.id)
+        select(Participant.event_id).where(
+            Participant.user_id == current_user.id,
+            Participant.rsvp != RsvpStatus.DECLINED,
+        )
     ).all()
 
     statement = (
@@ -73,7 +76,13 @@ def read_events(
         .limit(limit)
         .order_by(Event.date.desc())
     )
-    return session.exec(statement).all()
+    events = session.exec(statement).all()
+    result = []
+    for event in events:
+        read = EventRead.model_validate(event)
+        read.participant_count = sum(1 for p in event.participants if p.rsvp != RsvpStatus.DECLINED)
+        result.append(read)
+    return result
 
 
 # ─── Create ──────────────────────────────────────────────────────────────────
@@ -99,6 +108,87 @@ def create_event(
     session.commit()
     session.refresh(event)
     return event
+
+
+# ─── Pending invites (must be before /{event_id}) ────────────────────────────
+@router.get("/invites", response_model=List[EventInviteRead])
+def get_pending_invites(
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Zwraca wydarzenia, do których current_user jest zaproszony (rsvp=PENDING)."""
+    pending = session.exec(
+        select(Participant).where(
+            Participant.user_id == current_user.id,
+            Participant.rsvp == RsvpStatus.PENDING,
+        )
+    ).all()
+
+    result = []
+    for p in pending:
+        event = session.get(Event, p.event_id)
+        if not event:
+            continue
+        organizer = session.get(User, event.owner_id)
+        result.append(EventInviteRead(
+            participant_id=p.id,
+            event_id=event.id,
+            event_title=event.title,
+            event_date=event.date,
+            event_category=event.category,
+            organizer=organizer,
+        ))
+    return result
+
+
+# ─── RSVP ────────────────────────────────────────────────────────────────────
+@router.post("/{event_id}/rsvp", status_code=status.HTTP_204_NO_CONTENT)
+def rsvp_event(
+    event_id: UUID,
+    rsvp_in: RsvpAction,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Zaakceptuj lub odrzuć zaproszenie do wydarzenia."""
+    participant = session.exec(
+        select(Participant).where(
+            Participant.event_id == event_id,
+            Participant.user_id == current_user.id,
+        )
+    ).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Not invited to this event")
+    if participant.rsvp != RsvpStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Already responded to this invite")
+
+    participant.rsvp = RsvpStatus.ACCEPTED if rsvp_in.accept else RsvpStatus.DECLINED
+    session.add(participant)
+    session.commit()
+
+
+# ─── Leave ───────────────────────────────────────────────────────────────────
+@router.delete("/{event_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+def leave_event(
+    event_id: UUID,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Uczestnik opuszcza wydarzenie. Organizator nie może opuścić własnego eventu."""
+    event = _get_event_or_404(session, event_id)
+    if event.owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Organizer cannot leave their own event")
+
+    participant = session.exec(
+        select(Participant).where(
+            Participant.event_id == event_id,
+            Participant.user_id == current_user.id,
+        )
+    ).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Not a participant of this event")
+
+    session.delete(participant)
+    session.commit()
 
 
 # ─── Get one ─────────────────────────────────────────────────────────────────
@@ -173,15 +263,15 @@ def delete_event(
     response_model=ParticipantRead,
     status_code=status.HTTP_201_CREATED,
 )
-def invite_to_event(
+async def invite_to_event(
     event_id: UUID,
     invite_in: InviteCreate,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Zaprasza użytkownika po e-mailu. Organizator dodaje go do Participantów z RSVP=PENDING."""
+    """Zaprasza użytkownika po e-mailu. Każdy uczestnik może zapraszać; dodaje do Participantów z RSVP=PENDING."""
     event = _get_event_or_404(session, event_id)
-    _check_can_edit(event, current_user)
+    _check_can_view(session, event, current_user)
 
     # Czy taki user istnieje?
     invited_user = session.exec(
@@ -215,6 +305,15 @@ def invite_to_event(
     session.add(participant)
     session.commit()
     session.refresh(participant)
+
+    from app.websockets.manager import manager
+    await manager.send_personal_message({
+        "type": "event_invite_received",
+        "event_id": str(event_id),
+        "event_title": event.title,
+        "organizer_name": current_user.full_name,
+    }, invited_user.id)
+
     return participant
 
 # ─── Chat ────────────────────────────────────────────────────────────────────
