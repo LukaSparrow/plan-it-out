@@ -62,9 +62,10 @@ export function UpcomingEvents({ events }: UpcomingEventsProps) {
                 {event.participants.slice(0, 3).map((p) => (
                   <img
                     key={p.id}
-                    src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.name}`}
+                    src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}`}
                     className="w-5 h-5 rounded-full border-2 border-surface-1 bg-surface-2"
-                    alt={p.user.name}
+                    alt={p.user.full_name}
+                    onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}` }}
                   />
                 ))}
               </div>

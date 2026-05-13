@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, ZoomControl, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -68,11 +68,13 @@ export function LocationPickerMap({ picked, flyTo, onPick }: LocationPickerMapPr
       zoom={picked ? 14 : DEFAULT_ZOOM}
       className="h-full w-full"
       style={{ cursor: 'crosshair' }}
+      zoomControl={false}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <ZoomControl position="bottomleft" />
       <ClickHandler onPick={onPick} />
       {flyTo && <FlyTo lat={flyTo.lat} lng={flyTo.lng} />}
       {picked && <Marker position={[picked.lat, picked.lng]} icon={pinIcon} />}

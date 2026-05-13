@@ -5,6 +5,8 @@ export interface User {
   full_name: string
   avatar_url?: string
   created_at: string
+  google_connected?: boolean
+  google_calendar_sync?: boolean
 }
 
 export interface AuthTokens {

@@ -33,8 +33,10 @@ class User(UserBase, table=True):
     __tablename__ = "users"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    hashed_password: str
+    hashed_password: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    google_refresh_token: Optional[str] = Field(default=None)
+    google_calendar_sync: bool = Field(default=False)
 
     # Wydarzenia, których jestem organizatorem
     events: List["Event"] = Relationship(back_populates="owner")

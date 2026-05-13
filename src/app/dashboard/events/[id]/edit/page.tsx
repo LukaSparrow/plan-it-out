@@ -51,7 +51,9 @@ type EditFormValues = z.infer<typeof editSchema>
 
 function isoToFields(iso?: string): { date: string; time: string } {
   if (!iso) return { date: '', time: '' }
-  const d = new Date(iso)
+  // Naive datetimes from API have no timezone suffix — treat as UTC
+  const utc = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z'
+  const d = new Date(utc)
   return {
     date: d.toLocaleDateString('en-CA'),
     time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,

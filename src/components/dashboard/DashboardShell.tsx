@@ -7,6 +7,8 @@ import { Sidebar } from "./SideBar";
 import { useChatStore } from "@/lib/chatStore";
 import { useNotificationStore } from "@/lib/notificationStore";
 import { useSearchStore } from "@/lib/searchStore";
+import { eventsApi, friendsApi } from "@/lib/api";
+import type { EventInvite, FriendRequest } from "@/types";
 import { NotificationPanel } from "./NotificationPanel";
 import { SearchModal } from "./SearchModal";
 
@@ -23,6 +25,38 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     connect();
     return () => disconnect();
   }, [connect, disconnect]);
+
+  useEffect(() => {
+    const { add } = useNotificationStore.getState()
+
+    eventsApi.invites().then((res) => {
+      res.data.forEach((invite: EventInvite) => {
+        add({
+          id: `event-invite-${invite.participant_id}`,
+          type: 'event_invite',
+          link: `/dashboard/events/${invite.event_id}#rsvp`,
+          title: invite.event_title,
+          subtitle: invite.organizer ? `${invite.organizer.full_name} zaprasza Cię` : 'Zaproszenie do wydarzenia',
+          createdAt: invite.event_date,
+          read: false,
+        })
+      })
+    }).catch(() => {})
+
+    friendsApi.requests().then((res) => {
+      res.data.forEach((req: FriendRequest) => {
+        add({
+          id: `friend-${req.id}`,
+          type: 'friend_invite',
+          link: '/dashboard/friends',
+          title: req.requester.full_name,
+          subtitle: 'Zaproszenie do znajomych',
+          createdAt: req.created_at,
+          read: false,
+        })
+      })
+    }).catch(() => {})
+  }, []);
 
   return (
     <div className="flex h-dvh bg-surface-0 overflow-hidden">

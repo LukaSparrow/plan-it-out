@@ -62,6 +62,7 @@ export function ParticipantsSection({
             src={avatarUrl(organizer)}
             alt={userName(organizer)}
             className="w-9 h-9 rounded-full bg-surface-2"
+            onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${organizer.id}` }}
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-ink truncate">
@@ -81,6 +82,7 @@ export function ParticipantsSection({
               src={avatarUrl(p.user)}
               alt={userName(p.user)}
               className="w-9 h-9 rounded-full bg-surface-2"
+              onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}` }}
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-ink truncate">

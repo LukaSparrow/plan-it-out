@@ -127,6 +127,7 @@ export default function NewEventPage() {
     control,
     watch,
     setValue,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
@@ -140,11 +141,16 @@ export default function NewEventPage() {
   const createMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
       const isoDate = new Date(`${data.date}T${data.time}`).toISOString()
-      // Wysyłamy tylko pola, które aktualnie obsługuje backend (FastAPI EventBase)
+      const isoEndDate =
+        data.end_date && data.end_time
+          ? new Date(`${data.end_date}T${data.end_time}`).toISOString()
+          : undefined
       const payload = {
         title: data.title,
         description: data.description || undefined,
+        category: data.category,
         date: isoDate,
+        end_date: isoEndDate,
         location: data.location,
         location_lat: pickedLocation?.lat,
         location_lng: pickedLocation?.lng,
@@ -332,7 +338,7 @@ export default function NewEventPage() {
                   'input-field',
                   errors.end_time && 'border-red-400 focus:border-red-400',
                 )}
-                {...register('end_time')}
+                {...register('end_time', { onChange: () => trigger('end_date') })}
               />
             </div>
             {errors.end_date && (

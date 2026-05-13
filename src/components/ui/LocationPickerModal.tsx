@@ -57,6 +57,7 @@ export function LocationPickerModal({
   )
   const [addressText, setAddressText] = useState(initial?.text ?? '')
   const [reversing, setReversing] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Reset when modal opens with a new initial value
@@ -87,8 +88,26 @@ export function LocationPickerModal({
 
   const handleQueryChange = (value: string) => {
     setQuery(value)
+    setActiveIdx(-1)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => searchNominatim(value), 400)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestions.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx((i) => (i + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx((i) => (i <= 0 ? suggestions.length - 1 : i - 1))
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault()
+      handleSuggestionPick(suggestions[activeIdx])
+    } else if (e.key === 'Escape') {
+      setSuggestions([])
+      setActiveIdx(-1)
+    }
   }
 
   const handleSuggestionPick = (result: NominatimResult) => {
@@ -99,6 +118,7 @@ export function LocationPickerModal({
     setAddressText(result.display_name)
     setQuery(result.display_name)
     setSuggestions([])
+    setActiveIdx(-1)
   }
 
   const handleMapClick = async (lat: number, lng: number) => {
@@ -159,7 +179,7 @@ export function LocationPickerModal({
         </div>
 
         {/* Search */}
-        <div className="relative px-4 py-3 border-b border-surface-2 flex-shrink-0">
+        <div className="relative z-[1000] px-4 py-3 border-b border-surface-2 flex-shrink-0">
           <div className="flex items-center gap-2 bg-surface-0 border border-surface-2 rounded-xl px-3 py-2 focus-within:border-brand-400 transition-colors">
             {searching ? (
               <Loader2 size={15} className="text-ink-subtle animate-spin flex-shrink-0" />
@@ -171,6 +191,7 @@ export function LocationPickerModal({
               placeholder="Wyszukaj adres lub miejsce…"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-subtle outline-none"
             />
             {query && (
@@ -186,11 +207,16 @@ export function LocationPickerModal({
           {/* Suggestions dropdown */}
           {suggestions.length > 0 && (
             <ul className="absolute left-4 right-4 top-full mt-1 bg-surface-1 border border-surface-2 rounded-xl shadow-lg z-10 overflow-hidden">
-              {suggestions.map((s) => (
+              {suggestions.map((s, idx) => (
                 <li key={s.place_id}>
                   <button
                     onClick={() => handleSuggestionPick(s)}
-                    className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-surface-2 transition-colors text-sm"
+                    className={cn(
+                      'w-full flex items-start gap-2 px-3 py-2.5 text-left transition-colors text-sm',
+                      idx === activeIdx
+                        ? 'bg-surface-2'
+                        : 'hover:bg-surface-2',
+                    )}
                   >
                     <MapPin size={13} className="text-brand-500 flex-shrink-0 mt-0.5" />
                     <span className="text-ink line-clamp-2">{s.display_name}</span>

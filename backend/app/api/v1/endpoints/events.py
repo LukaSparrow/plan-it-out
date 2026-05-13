@@ -2,9 +2,10 @@
 Endpointy do obsługi wydarzeń.
 Dostęp: organizator widzi wszystko, uczestnicy widzą eventy do których zostali zaproszeni.
 """
+from datetime import timedelta
 from typing import Any, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import select, or_
 
 from app.api.deps import SessionDep, get_current_user
@@ -90,10 +91,15 @@ def read_events(
 def create_event(
     *,
     session: SessionDep,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     event_in: EventCreate,
 ) -> Any:
     """Tworzy event - automatycznie dodaje ownera jako Participanta z rolą ORGANIZER."""
+    # Capture before commit — SQLAlchemy expires objects on commit, lazy reload may fail
+    cal_sync = current_user.google_calendar_sync
+    cal_token = current_user.google_refresh_token
+
     event = Event.model_validate(event_in, update={"owner_id": current_user.id})
     session.add(event)
     session.flush()  # Dostajemy ID przed commitem, żeby utworzyć Participanta
@@ -107,6 +113,22 @@ def create_event(
     session.add(organizer_participant)
     session.commit()
     session.refresh(event)
+
+    if cal_sync and cal_token:
+        from app.services.google_calendar import create_calendar_event
+        from datetime import timezone as _tz
+        def _utc(dt): return dt.replace(tzinfo=_tz.utc) if not dt.tzinfo else dt
+        end_dt = event.end_date if event.end_date else event.date + timedelta(hours=2)
+        background_tasks.add_task(
+            create_calendar_event,
+            cal_token,
+            event.title,
+            _utc(event.date).isoformat(),
+            _utc(end_dt).isoformat(),
+            event.location,
+            event.description,
+        )
+
     return event
 
 
@@ -143,13 +165,18 @@ def get_pending_invites(
 
 # ─── RSVP ────────────────────────────────────────────────────────────────────
 @router.post("/{event_id}/rsvp", status_code=status.HTTP_204_NO_CONTENT)
-def rsvp_event(
+async def rsvp_event(
     event_id: UUID,
     rsvp_in: RsvpAction,
+    background_tasks: BackgroundTasks,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> None:
     """Zaakceptuj lub odrzuć zaproszenie do wydarzenia."""
+    # Capture before commit
+    cal_sync = current_user.google_calendar_sync
+    cal_token = current_user.google_refresh_token
+
     participant = session.exec(
         select(Participant).where(
             Participant.event_id == event_id,
@@ -164,6 +191,32 @@ def rsvp_event(
     participant.rsvp = RsvpStatus.ACCEPTED if rsvp_in.accept else RsvpStatus.DECLINED
     session.add(participant)
     session.commit()
+
+    if rsvp_in.accept:
+        all_participant_ids = session.exec(
+            select(Participant.user_id).where(Participant.event_id == event_id)
+        ).all()
+        from app.websockets.manager import manager
+        await manager.broadcast_to_users(all_participant_ids, {
+            "type": "participant_joined",
+            "event_id": str(event_id),
+        })
+
+        if cal_sync and cal_token:
+            from app.services.google_calendar import create_calendar_event
+            from datetime import timezone as _tz
+            def _utc(dt): return dt.replace(tzinfo=_tz.utc) if not dt.tzinfo else dt
+            event = _get_event_or_404(session, event_id)
+            end_dt = event.end_date if event.end_date else event.date + timedelta(hours=2)
+            background_tasks.add_task(
+                create_calendar_event,
+                cal_token,
+                event.title,
+                _utc(event.date).isoformat(),
+                _utc(end_dt).isoformat(),
+                event.location,
+                event.description,
+            )
 
 
 # ─── Leave ───────────────────────────────────────────────────────────────────

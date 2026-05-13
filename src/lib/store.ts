@@ -20,7 +20,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isAuthenticated: true }),
 
       setToken: (token) => {
-        Cookies.set('access_token', token, { expires: 7, sameSite: 'strict' })
+        Cookies.set('access_token', token, { expires: 7, sameSite: 'lax' })
       },
 
       logout: () => {
