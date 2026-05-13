@@ -63,6 +63,7 @@ export function EventCard({ event, className }: EventCardProps) {
                       className="w-6 h-6 rounded-full border-2 border-surface-1 bg-surface-2"
                       alt={p.user.full_name}
                       title={p.user.full_name}
+                      onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}` }}
                     />
                   ))}
                   {active.length > 4 && (

@@ -52,4 +52,7 @@ def login(session: SessionDep, form_data: OAuth2PasswordRequestForm = Depends())
 # Endpoint zwracający kim obecnie jesteśmy, uderzając za pomocą tokenu JWT
 @router.get("/me", response_model=UserRead)
 def read_user_me(current_user: User = Depends(get_current_user)) -> Any:
-    return current_user
+    user_read = UserRead.model_validate(current_user)
+    user_read.google_connected = bool(current_user.google_refresh_token)
+    user_read.google_calendar_sync = current_user.google_calendar_sync
+    return user_read

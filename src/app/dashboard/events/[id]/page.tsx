@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -17,9 +17,10 @@ import {
   Loader2,
   AlertCircle,
   CalendarCheck,
+  CalendarPlus,
   X,
 } from 'lucide-react'
-import { getEventStatus } from '@/lib/utils'
+import { getEventStatus, buildGoogleCalendarUrl } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
 import { eventsApi, checklistApi, expensesApi } from '@/lib/api'
 import { EventChat } from '@/components/events/EventChat'
@@ -129,6 +130,26 @@ export default function EventDetailPage() {
     },
   })
 
+  useEffect(() => {
+    if (!eventQuery.data) return
+    const hash = window.location.hash
+    if (!hash) return
+    setTimeout(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+  }, [eventQuery.data])
+
+  useEffect(() => {
+    const handler: EventListener = (evt) => {
+      const { eventId } = (evt as CustomEvent).detail
+      if (eventId === params.id) {
+        queryClient.invalidateQueries({ queryKey: ['events', params.id] })
+      }
+    }
+    window.addEventListener('ws:event-updated', handler)
+    return () => window.removeEventListener('ws:event-updated', handler)
+  }, [params.id, queryClient])
+
   if (eventQuery.isLoading) return <LoadingState />
   if (eventQuery.isError || !eventQuery.data) {
     return (
@@ -158,6 +179,15 @@ export default function EventDetailPage() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <a
+            href={buildGoogleCalendarUrl(event)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-outline flex items-center gap-1.5 text-sm"
+          >
+            <CalendarPlus size={14} />
+            Dodaj do kalendarza
+          </a>
           <button
             onClick={() => setInviteOpen(true)}
             className="btn-outline flex items-center gap-1.5 text-sm"
@@ -216,7 +246,7 @@ export default function EventDetailPage() {
       <EventHero event={event} />
 
       {isPendingRsvp && (
-        <div className="mt-6 card p-4 sm:p-5 border-l-4 border-l-brand-500 flex items-center justify-between gap-4 animate-fade-up">
+        <div id="rsvp" className="mt-6 scroll-mt-16 card p-4 sm:p-5 border-l-4 border-l-brand-500 flex items-center justify-between gap-4 animate-fade-up">
           <div className="flex items-center gap-3">
             <CalendarCheck size={20} className="text-brand-500 flex-shrink-0" />
             <div>
@@ -247,23 +277,29 @@ export default function EventDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">
-          <EventChat eventId={event.id} />
-          <ChecklistSection
-            eventId={event.id}
-            items={checklistQuery.data ?? []}
-            isLoading={checklistQuery.isLoading}
-            isError={checklistQuery.isError}
-            participants={event.participants}
-            organizer={event.organizer}
-          />
-          <ExpensesSection
-            eventId={event.id}
-            expenses={expensesQuery.data ?? []}
-            balances={balancesQuery.data ?? []}
-            isLoading={expensesQuery.isLoading}
-            isError={expensesQuery.isError}
-            onAdd={() => setExpenseOpen(true)}
-          />
+          <div id="chat" className="scroll-mt-16">
+            <EventChat eventId={event.id} />
+          </div>
+          <div id="checklist" className="scroll-mt-16">
+            <ChecklistSection
+              eventId={event.id}
+              items={checklistQuery.data ?? []}
+              isLoading={checklistQuery.isLoading}
+              isError={checklistQuery.isError}
+              participants={event.participants}
+              organizer={event.organizer}
+            />
+          </div>
+          <div id="expenses" className="scroll-mt-16">
+            <ExpensesSection
+              eventId={event.id}
+              expenses={expensesQuery.data ?? []}
+              balances={balancesQuery.data ?? []}
+              isLoading={expensesQuery.isLoading}
+              isError={expensesQuery.isError}
+              onAdd={() => setExpenseOpen(true)}
+            />
+          </div>
         </div>
 
         <div className="space-y-6">

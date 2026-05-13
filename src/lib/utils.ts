@@ -54,6 +54,25 @@ export const CATEGORY_COLORS = {
   other:  'from-orange-500 to-amber-400',
 } as const
 
+export function buildGoogleCalendarUrl(event: {
+  title: string
+  date: string
+  end_date?: string | null
+  location?: string | null
+  description?: string | null
+}): string {
+  const fmt = (iso: string) =>
+    iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '').replace('Z', 'Z')
+  const start = fmt(event.date)
+  const end = event.end_date
+    ? fmt(event.end_date)
+    : fmt(new Date(new Date(event.date).getTime() + 2 * 3_600_000).toISOString())
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: event.title, dates: `${start}/${end}` })
+  if (event.location) params.set('location', event.location)
+  if (event.description) params.set('details', event.description)
+  return `https://calendar.google.com/calendar/render?${params}`
+}
+
 export const CATEGORY_ICONS = {
   trip:   '✈️',
   party:  '🎉',

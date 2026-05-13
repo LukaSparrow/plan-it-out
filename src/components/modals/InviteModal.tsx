@@ -23,6 +23,7 @@ export function InviteModal({
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
+  const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set())
 
   const participantUserIds = new Set(participants?.map((p) => p.user.id) ?? [])
 
@@ -52,12 +53,18 @@ export function InviteModal({
 
   const inviteFriend = (friend: User) => {
     setError(null)
-    inviteMutation.mutate(friend.email, {
-      onSuccess: () => {
+    setPendingFriendIds((prev) => new Set(prev).add(friend.id))
+    eventsApi.invite(eventId, friend.email)
+      .then(() => {
         setInvitedIds((prev) => new Set(prev).add(friend.id))
         queryClient.invalidateQueries({ queryKey: ['events', eventId] })
-      },
-    })
+      })
+      .catch((err: any) => {
+        setError(err?.response?.data?.detail ?? 'Nie udało się wysłać zaproszenia.')
+      })
+      .finally(() => {
+        setPendingFriendIds((prev) => { const s = new Set(prev); s.delete(friend.id); return s })
+      })
   }
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -144,7 +151,7 @@ export function InviteModal({
                     </div>
                     <button
                       onClick={() => !done && inviteFriend(friend)}
-                      disabled={done || inviteMutation.isPending}
+                      disabled={done || pendingFriendIds.has(friend.id)}
                       className={cn(
                         'flex-shrink-0 flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:cursor-not-allowed',
                         done
@@ -154,7 +161,7 @@ export function InviteModal({
                     >
                       {done ? (
                         <><Check size={12} /> Zaproszono</>
-                      ) : inviteMutation.isPending ? (
+                      ) : pendingFriendIds.has(friend.id) ? (
                         <Loader2 size={12} className="animate-spin" />
                       ) : (
                         <><UserPlus size={12} /> Zaproś</>

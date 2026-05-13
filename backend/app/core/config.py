@@ -13,7 +13,13 @@ class Settings(BaseSettings):
     # Jakim algorytmem haszujemy JWT i ile minut token będzie ważny
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+
+    # Google OAuth — wypełnij w .env żeby włączyć logowanie przez Google
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "http://localhost:8000"
+
     # Automatycznie zassij zmienne z pliku .env i zignoruj inne, których Pydantic nie zna
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

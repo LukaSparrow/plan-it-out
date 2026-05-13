@@ -49,6 +49,7 @@ export default function RootLayout({
             {children}
             <Toaster
               position="top-right"
+              closeButton
               toastOptions={{
                 classNames: {
                   toast:       'font-body bg-surface-1 border border-surface-2 shadow-card-lg rounded-xl text-ink',

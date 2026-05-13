@@ -98,6 +98,13 @@ export const friendsApi = {
   remove: (friendId: string) => api.delete(`/friends/${friendId}`),
 }
 
+// ─── Users endpoints ─────────────────────────────────────────────────────────
+export const usersApi = {
+  updatePreferences: (data: { google_calendar_sync: boolean }) =>
+    api.patch('/users/me/preferences', data),
+  disconnectCalendar: () => api.delete('/auth/google/calendar'),
+}
+
 // ─── Checklist endpoints ──────────────────────────────────────────────────────
 export const checklistApi = {
   list: (eventId: string) => api.get(`/events/${eventId}/checklist`),

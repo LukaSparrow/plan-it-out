@@ -17,10 +17,16 @@ class UserCreate(BaseModel):
 class UserRead(UserBase):
     id: UUID
     created_at: datetime
+    google_connected: bool = False
+    google_calendar_sync: bool = False
 
 
 # Zubożona wersja - używamy w nested response (np. lista uczestników wydarzenia),
 # żeby nie ładować pełnego usera z rolą i datą stworzenia za każdym razem.
+class UserPreferencesUpdate(BaseModel):
+    google_calendar_sync: bool
+
+
 class UserPublic(BaseModel):
     id: UUID
     email: EmailStr

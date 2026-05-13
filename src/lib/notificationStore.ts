@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface AppNotification {
   id: string
@@ -19,20 +20,29 @@ interface NotificationStore {
   markAllRead: () => void
 }
 
-export const useNotificationStore = create<NotificationStore>((set) => ({
-  notifications: [],
-  panelOpen: false,
+export const useNotificationStore = create<NotificationStore>()(
+  persist(
+    (set) => ({
+      notifications: [],
+      panelOpen: false,
 
-  add: (n) =>
-    set((state) => ({
-      notifications: [n, ...state.notifications].slice(0, 50),
-    })),
+      add: (n) =>
+        set((state) => {
+          if (state.notifications.some((existing) => existing.id === n.id)) return state
+          return { notifications: [n, ...state.notifications].slice(0, 50) }
+        }),
 
-  openPanel: () => set({ panelOpen: true }),
-  closePanel: () => set({ panelOpen: false }),
+      openPanel: () => set({ panelOpen: true }),
+      closePanel: () => set({ panelOpen: false }),
 
-  markAllRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-    })),
-}))
+      markAllRead: () =>
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, read: true })),
+        })),
+    }),
+    {
+      name: 'pio-notifications',
+      partialize: (state) => ({ notifications: state.notifications }),
+    },
+  ),
+)
