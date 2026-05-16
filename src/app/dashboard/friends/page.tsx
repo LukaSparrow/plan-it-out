@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -159,6 +159,7 @@ export default function FriendsPage() {
                 <li key={req.id} className="flex items-center gap-3 py-3">
                   <img
                     src={avatarUrl(req.requester)}
+                    referrerPolicy="no-referrer"
                     alt={userName(req.requester)}
                     className="w-10 h-10 rounded-full bg-surface-2 flex-shrink-0"
                   />
@@ -233,6 +234,7 @@ export default function FriendsPage() {
               <div className="flex items-center gap-3">
                 <img
                   src={avatarUrl(friend)}
+                  referrerPolicy="no-referrer"
                   alt={userName(friend)}
                   className="w-12 h-12 rounded-full bg-surface-2 flex-shrink-0"
                 />

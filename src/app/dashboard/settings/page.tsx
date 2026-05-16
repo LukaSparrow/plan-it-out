@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useTheme } from 'next-themes'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -105,6 +105,7 @@ function SettingsContent() {
           <div className="flex items-center gap-4 mb-6">
             <img
               src={avatarUrl(user ?? undefined)}
+              referrerPolicy="no-referrer"
               alt={user?.full_name ?? 'Użytkownik'}
               className="w-16 h-16 rounded-full bg-surface-2 flex-shrink-0"
             />

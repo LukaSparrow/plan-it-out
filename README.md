@@ -33,6 +33,48 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Testy
+
+### Backend (pytest)
+
+Testy integracyjne używają bazy SQLite in-memory — nie wymagają połączenia z Neon/PostgreSQL.
+
+```bash
+cd backend
+pip install -r requirements_test.txt   # jednorazowo
+pytest                                  # wszystkie testy
+pytest -v                               # z nazwami przypadków
+pytest tests/test_splitter.py          # tylko wybrany moduł
+pytest --tb=short                       # skrócony stack trace
+```
+
+**Co jest testowane:**
+
+| Plik | Zakres |
+| ---- | ------ |
+| `tests/test_splitter.py` | Algorytm minimalizacji transakcji (jednostkowe, bez DB) |
+| `tests/test_auth.py` | Rejestracja, logowanie, `/auth/me`, błędy uwierzytelnienia |
+| `tests/test_events.py` | CRUD wydarzeń, zaproszenia, kontrola dostępu |
+| `tests/test_expenses.py` | Dodawanie wydatków, wykluczanie odrzuconych uczestników, salda |
+
+### Frontend (Jest + React Testing Library)
+
+```bash
+# Instalacja zależności testowych (jednorazowo)
+npm install
+
+npm test                  # uruchom testy raz
+npm run test:watch        # tryb watch (re-run przy zmianach)
+npm run test:coverage     # raport pokrycia kodu
+```
+
+**Co jest testowane:**
+
+| Plik | Zakres |
+| ---- | ------ |
+| `src/__tests__/utils.test.ts` | `cn()`, `formatCurrency()`, `getEventStatus()`, `buildGoogleCalendarUrl()` |
+| `src/__tests__/userHelpers.test.ts` | `userName()`, `avatarUrl()` |
+
 Otwórz [http://localhost:3000](http://localhost:3000).
 
 **Demo login:** `jan@example.com` / `password`
@@ -234,5 +276,8 @@ alembic upgrade head
 - [x] RSVP – akceptowanie/odrzucanie zaproszeń do wydarzeń
 - [x] Panel powiadomień z persistencją (localStorage)
 - [x] OAuth Google
-- [ ] Strona profilu i ustawień
-- [ ] PWA + tryb offline
+- [x] Strona ustawień konta
+
+## Future Improvements
+
+- PWA + tryb offline

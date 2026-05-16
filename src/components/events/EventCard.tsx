@@ -99,12 +99,12 @@ export function EventCard({ event, className }: EventCardProps) {
 }
 
 function StatusBadge({ status }: { status: Event['status'] }) {
-  const config = {
+  const config = ({
     upcoming: { label: 'Nadchodzi', className: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' },
     ongoing:  { label: 'W toku',    className: 'bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400' },
     past:     { label: 'Minione',   className: 'bg-surface-2 text-ink-muted' },
     cancelled:{ label: 'Anulowane', className: 'bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400' },
-  }[status]
+  } as Record<string, { label: string; className: string }>)[status] ?? { label: status, className: 'bg-surface-2 text-ink-muted' }
 
   return (
     <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0', config.className)}>

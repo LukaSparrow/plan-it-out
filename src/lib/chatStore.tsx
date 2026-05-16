@@ -1,3 +1,16 @@
+/**
+ * Store WebSocket dla czatu i powiadomień w czasie rzeczywistym.
+ * Jedno połączenie na aplikację — tworzone po zalogowaniu w DashboardShell.
+ * Odbiera zdarzenia z backendu i przekazuje je do powiadomień/handlerów stron.
+ *
+ * Typy zdarzeń obsługiwane przez onmessage:
+ *   new_chat_message    – nowa wiadomość na czacie wydarzenia
+ *   friend_invite_received – przychodzące zaproszenie do znajomych
+ *   event_invite_received  – zaproszenie do wydarzenia
+ *   expense_added          – nowy wydatek w wydarzeniu
+ *   participant_joined     – ktoś zaakceptował RSVP
+ *   task_assigned          – zadanie przypisane do bieżącego użytkownika
+ */
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import Cookies from 'js-cookie'
@@ -32,8 +45,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   connect: () => {
     const token = Cookies.get('access_token')
+    // Nie łącz ponownie jeśli socket już istnieje lub brak tokena
     if (!token || get().socket) return
 
+    // Zamieniamy http → ws (lub https → wss) żeby dostać poprawny URL WebSocket
     const baseApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     const wsUrl = baseApiUrl.replace(/^http/, 'ws') + `/ws/notifications?token=${token}`
 
@@ -48,8 +63,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const currentPath = window.location.pathname
           const handler = get().onMessageHandlers[msg.event_id]
           if (handler && currentPath.includes(`/dashboard/events/${msg.event_id}`)) {
+            // Użytkownik jest na stronie tego wydarzenia — przekaż do handlera komponentu czatu
             handler(msg)
           } else {
+            // Użytkownik jest gdzie indziej — pokaż toast + zapisz w notificationStore
             const eventTitle = data.event_title || 'wydarzeniu'
             const link = `/dashboard/events/${msg.event_id}#chat`
             toast.custom((t) => (
@@ -141,6 +158,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
 
         if (data.type === 'participant_joined') {
+          // Odśwież dane wydarzenia (lista uczestników) przez customowy event DOM
           window.dispatchEvent(new CustomEvent('ws:event-updated', {
             detail: { eventId: data.event_id },
           }))

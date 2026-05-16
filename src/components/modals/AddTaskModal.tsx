@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -111,6 +111,7 @@ export function AddTaskModal({
                     />
                     <img
                       src={avatarUrl(u)}
+                      referrerPolicy="no-referrer"
                       alt={userName(u)}
                       className="w-7 h-7 rounded-full bg-surface-2"
                     />

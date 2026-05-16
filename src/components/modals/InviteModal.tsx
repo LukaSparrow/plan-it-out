@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -23,6 +23,7 @@ export function InviteModal({
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
+  // Set zamiast pojedynczego string — każdy przycisk "Zaproś" ma własny stan loading
   const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set())
 
   const participantUserIds = new Set(participants?.map((p) => p.user.id) ?? [])
@@ -53,6 +54,7 @@ export function InviteModal({
 
   const inviteFriend = (friend: User) => {
     setError(null)
+    // Bezpośrednie wywołanie API zamiast shared mutation — umożliwia równoległe in-flight requesty
     setPendingFriendIds((prev) => new Set(prev).add(friend.id))
     eventsApi.invite(eventId, friend.email)
       .then(() => {
@@ -63,6 +65,7 @@ export function InviteModal({
         setError(err?.response?.data?.detail ?? 'Nie udało się wysłać zaproszenia.')
       })
       .finally(() => {
+        // Usuń tylko tego znajomego z pending — nie wpływa na inne in-flight requesty
         setPendingFriendIds((prev) => { const s = new Set(prev); s.delete(friend.id); return s })
       })
   }
@@ -142,6 +145,7 @@ export function InviteModal({
                   >
                     <img
                       src={avatarUrl(friend)}
+                      referrerPolicy="no-referrer"
                       alt={userName(friend)}
                       className="w-8 h-8 rounded-full bg-surface-2 flex-shrink-0"
                     />

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Receipt, Plus, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -71,6 +71,7 @@ export function ExpensesSection({
               >
                 <img
                   src={avatarUrl(b.from)}
+                  referrerPolicy="no-referrer"
                   alt={userName(b.from)}
                   className="w-8 h-8 rounded-full bg-surface-2"
                 />
@@ -81,6 +82,7 @@ export function ExpensesSection({
                 </div>
                 <img
                   src={avatarUrl(b.to)}
+                  referrerPolicy="no-referrer"
                   alt={userName(b.to)}
                   className="w-8 h-8 rounded-full bg-surface-2"
                 />
@@ -111,6 +113,7 @@ export function ExpensesSection({
               <li key={exp.id} className="py-3 flex items-center gap-3">
                 <img
                   src={avatarUrl(exp.paid_by)}
+                  referrerPolicy="no-referrer"
                   alt={userName(exp.paid_by)}
                   className="w-9 h-9 rounded-full bg-surface-2"
                 />
