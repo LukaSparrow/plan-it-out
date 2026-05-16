@@ -1,3 +1,8 @@
+/**
+ * Klient HTTP (Axios) dla backendu FastAPI.
+ * Interceptory automatycznie doklejają token JWT do każdego requesta
+ * i przekierowują na stronę logowania przy odpowiedzi 401.
+ */
 import axios from 'axios'
 import Cookies from 'js-cookie'
 
@@ -10,7 +15,7 @@ export const api = axios.create({
   },
 })
 
-// ─── Request interceptor – attach JWT ────────────────────────────────────────
+// ─── Request interceptor – dołącz JWT do każdego requesta ────────────────────
 api.interceptors.request.use((config) => {
   const token = Cookies.get('access_token')
   if (token) {
@@ -19,11 +24,12 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ─── Response interceptor – handle 401 ───────────────────────────────────────
+// ─── Response interceptor – obsłuż wygasły/nieważny token ───────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Usuń token i wymuś ponowne logowanie
       Cookies.remove('access_token')
       window.location.href = '/auth/login'
     }

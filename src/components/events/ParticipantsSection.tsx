@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Users, UserPlus, Sparkles } from 'lucide-react'
 import { cn, formatRelative } from '@/lib/utils'
@@ -60,6 +60,7 @@ export function ParticipantsSection({
         <li className="flex items-center gap-3 p-2.5 rounded-xl bg-brand-50/40 dark:bg-brand-950/20 border border-brand-200/40 dark:border-brand-800/30">
           <img
             src={avatarUrl(organizer)}
+            referrerPolicy="no-referrer"
             alt={userName(organizer)}
             className="w-9 h-9 rounded-full bg-surface-2"
             onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${organizer.id}` }}
@@ -80,6 +81,7 @@ export function ParticipantsSection({
           >
             <img
               src={avatarUrl(p.user)}
+              referrerPolicy="no-referrer"
               alt={userName(p.user)}
               className="w-9 h-9 rounded-full bg-surface-2"
               onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}` }}

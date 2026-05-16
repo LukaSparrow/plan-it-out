@@ -106,6 +106,7 @@ export function Sidebar({ closeMobile }: SidebarProps) {
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
             <img
               src={user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.full_name}`}
+              referrerPolicy="no-referrer"
               className="w-8 h-8 rounded-full bg-surface-2 flex-shrink-0"
               alt={user.full_name}
             />

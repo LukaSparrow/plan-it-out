@@ -1,3 +1,6 @@
+"""
+Główny router API v1 — zbiera wszystkie pod-routery endpointów i montuje je pod właściwymi prefiksami.
+"""
 from fastapi import APIRouter
 from app.api.v1.endpoints import auth, events, checklist, expenses, friends, google_auth, users
 

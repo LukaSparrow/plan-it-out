@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { Bell, Plus, Search, Check, X, CalendarCheck } from 'lucide-react'
+import { Bell, Plus, Search, Check, X, CalendarCheck, ExternalLink } from 'lucide-react'
 import { useQuery, useQueries, useMutation, useQueryClient, DefaultError } from '@tanstack/react-query'
 import { eventsApi, checklistApi, expensesApi, friendsApi } from '@/lib/api'
 import { getEventStatus, formatDate, CATEGORY_ICONS } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
+import { toast } from 'sonner'
 import { Event, ChecklistItem, Expense, EventInvite, User } from '@/types'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents'
@@ -101,6 +102,16 @@ export default function DashboardPage() {
     },
   })
 
+  const handleRsvp = (invite: EventInvite, accept: boolean) => {
+    const isPast = new Date(invite.event_date + 'Z') < new Date()
+    if (isPast) {
+      toast.error('To wydarzenie już się odbyło.')
+      rsvpMutation.mutate({ eventId: invite.event_id, accept: false })
+      return
+    }
+    rsvpMutation.mutate({ eventId: invite.event_id, accept })
+  }
+
   const stats = useMemo(() => {
     const upcoming = dbEvents.filter((e) => e.status === 'upcoming').length
 
@@ -180,38 +191,51 @@ export default function DashboardPage() {
             </span>
           </h2>
           <ul className="divide-y divide-surface-2">
-            {eventInvitesQuery.data!.map((invite) => (
-              <li key={invite.participant_id} className="flex items-center gap-3 py-3">
-                <span className="text-xl flex-shrink-0">
-                  {CATEGORY_ICONS[invite.event_category as keyof typeof CATEGORY_ICONS] ?? '📌'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-ink truncate">{invite.event_title}</p>
-                  <p className="text-xs text-ink-subtle">
-                    {formatDate(invite.event_date, 'd MMM yyyy')}
-                    {invite.organizer && ` · od ${invite.organizer.full_name}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => rsvpMutation.mutate({ eventId: invite.event_id, accept: true })}
-                    disabled={rsvpMutation.isPending}
-                    className="btn-primary flex items-center gap-1 text-xs py-1.5 px-3 disabled:opacity-50"
-                  >
-                    <Check size={13} />
-                    Akceptuj
-                  </button>
-                  <button
-                    onClick={() => rsvpMutation.mutate({ eventId: invite.event_id, accept: false })}
-                    disabled={rsvpMutation.isPending}
-                    className="btn-ghost flex items-center gap-1 text-xs py-1.5 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
-                  >
-                    <X size={13} />
-                    Odrzuć
-                  </button>
-                </div>
-              </li>
-            ))}
+            {eventInvitesQuery.data!.map((invite) => {
+              const isPast = new Date(invite.event_date + 'Z') < new Date()
+              return (
+                <li key={invite.participant_id} className="flex items-center gap-3 py-3">
+                  <span className="text-xl flex-shrink-0">
+                    {CATEGORY_ICONS[invite.event_category as keyof typeof CATEGORY_ICONS] ?? '📌'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-sm text-ink truncate">{invite.event_title}</p>
+                      <Link
+                        href={`/dashboard/events/${invite.event_id}`}
+                        className="flex-shrink-0 text-ink-subtle hover:text-brand-500 transition-colors"
+                        title="Przejdź do wydarzenia"
+                      >
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
+                    <p className="text-xs text-ink-subtle">
+                      {formatDate(invite.event_date, 'd MMM yyyy')}
+                      {invite.organizer && ` · od ${invite.organizer.full_name}`}
+                      {isPast && <span className="ml-1.5 text-red-400">· już minęło</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleRsvp(invite, true)}
+                      disabled={rsvpMutation.isPending}
+                      className="btn-primary flex items-center gap-1 text-xs py-1.5 px-3 disabled:opacity-50"
+                    >
+                      <Check size={13} />
+                      Akceptuj
+                    </button>
+                    <button
+                      onClick={() => handleRsvp(invite, false)}
+                      disabled={rsvpMutation.isPending}
+                      className="btn-ghost flex items-center gap-1 text-xs py-1.5 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
+                    >
+                      <X size={13} />
+                      Odrzuć
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

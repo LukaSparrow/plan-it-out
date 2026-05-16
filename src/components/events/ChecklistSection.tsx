@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,9 +30,12 @@ export function ChecklistSection({
   const queryClient = useQueryClient()
   const [addOpen, setAddOpen] = useState(false)
 
+  // Optymistyczna aktualizacja — checkbox wizualnie zaznacza się natychmiast,
+  // a w razie błędu API stan wraca do poprzedniego.
   const toggleMutation = useMutation({
     mutationFn: (itemId: string) => checklistApi.toggle(eventId, itemId),
     onMutate: async (itemId) => {
+      // Anuluj ewentualne in-flight query żeby nie nadpisało optymistycznej zmiany
       await queryClient.cancelQueries({ queryKey: ['events', eventId, 'checklist'] })
       const prev = queryClient.getQueryData<ChecklistItem[]>(['events', eventId, 'checklist'])
       queryClient.setQueryData<ChecklistItem[]>(
@@ -43,6 +46,7 @@ export function ChecklistSection({
       return { prev }
     },
     onError: (_err, _itemId, ctx) => {
+      // Przywróć poprzedni stan przy błędzie
       if (ctx?.prev) {
         queryClient.setQueryData(['events', eventId, 'checklist'], ctx.prev)
       }
@@ -136,6 +140,7 @@ export function ChecklistSection({
                 <div className="flex items-center gap-1.5 flex-shrink-0 text-xs text-ink-subtle">
                   <img
                     src={avatarUrl(item.assigned_to)}
+                    referrerPolicy="no-referrer"
                     alt={userName(item.assigned_to)}
                     className="w-5 h-5 rounded-full bg-surface-2"
                   />

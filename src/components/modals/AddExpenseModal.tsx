@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,10 +25,12 @@ export function AddExpenseModal({
   const [amount, setAmount] = useState('')
   const members = participants.filter((p) => p.user.id !== organizer.id)
   const allUsers: User[] = [organizer, ...members.map((p) => p.user)]
+  // Mapa status RSVP per user — używana do wyświetlenia etykiet (Potwierdził/Odrzucił itp.)
   const rsvpMap = new Map<string, string>([
     [organizer.id, 'organizer'],
     ...members.map((p) => [p.user.id, p.rsvp] as [string, string]),
   ])
+  // Domyślnie dzielimy na wszystkich aktywnych (bez odrzuconych)
   const [splitAmong, setSplitAmong] = useState<string[]>(() => [
     organizer.id,
     ...members.filter((p) => p.rsvp !== 'declined').map((p) => p.user.id),
@@ -119,6 +121,7 @@ export function AddExpenseModal({
                   />
                   <img
                     src={avatarUrl(u)}
+                    referrerPolicy="no-referrer"
                     alt={userName(u)}
                     className="w-7 h-7 rounded-full bg-surface-2"
                   />

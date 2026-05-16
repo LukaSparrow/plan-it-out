@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
@@ -8,6 +8,8 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from 'lucide-react'
 import {
   BarChart,
@@ -21,8 +23,9 @@ import {
 import { eventsApi, expensesApi } from '@/lib/api'
 import { cn, formatCurrency, formatDate, CATEGORY_ICONS } from '@/lib/utils'
 import { avatarUrl, userName } from '@/lib/userHelpers'
+import { useAuthStore } from '@/lib/store'
 import { StatCard } from '@/components/ui/StatCard'
-import type { Expense, Balance } from '@/types'
+import type { Expense, Balance, User } from '@/types'
 
 interface EventSummary {
   id: string
@@ -32,6 +35,7 @@ interface EventSummary {
 }
 
 export default function ExpensesPage() {
+  const { user } = useAuthStore()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const toggle = (id: string) =>
@@ -121,6 +125,54 @@ export default function ExpensesPage() {
 
   const primaryCurrency = eventsWithExpenses[0]?.expenses[0]?.currency ?? 'PLN'
 
+  /**
+   * Globalne podsumowanie długów zalogowanego użytkownika (wszystkie wydarzenia).
+   * Agreguje balance per kontrahent (UUID jako klucz), a następnie nettuje wzajemne
+   * długi — jeśli A winien B 10 zł i B winien A 6 zł, wynik = A winien B 4 zł.
+   * UUID normalizowane do lowercase, bo backend może zwracać różne formaty.
+   */
+  const globalSummary = useMemo(() => {
+    if (!user) return { iOwe: [] as { person: User; amount: number }[], owedToMe: [] as { person: User; amount: number }[] }
+    const iOweMap = new Map<string, { person: User; amount: number }>()
+    const owedMap = new Map<string, { person: User; amount: number }>()
+    const myId = String(user.id).toLowerCase()
+    for (const { balances } of eventsWithExpenses) {
+      for (const b of balances) {
+        const fromId = String(b.from.id).toLowerCase()
+        const toId = String(b.to.id).toLowerCase()
+        if (fromId === myId) {
+          // Bieżący użytkownik jest dłużnikiem — sumujemy kwoty do tego samego kontrahenta
+          const prev = iOweMap.get(toId)
+          iOweMap.set(toId, { person: b.to, amount: (prev?.amount ?? 0) + b.amount })
+        } else if (toId === myId) {
+          // Bieżący użytkownik jest wierzycielem
+          const prev = owedMap.get(fromId)
+          owedMap.set(fromId, { person: b.from, amount: (prev?.amount ?? 0) + b.amount })
+        }
+      }
+    }
+    // Net-cancel: ta sama osoba w obu mapach → zostaw tylko różnicę w większym kosz uku
+    const allIds = new Set<string>([...iOweMap.keys(), ...owedMap.keys()])
+    const iOwe: { person: User; amount: number }[] = []
+    const owedToMe: { person: User; amount: number }[] = []
+    for (const id of allIds) {
+      const owe = iOweMap.get(id)?.amount ?? 0
+      const owed = owedMap.get(id)?.amount ?? 0
+      const person = (iOweMap.get(id) ?? owedMap.get(id))!.person
+      const net = owe - owed
+      if (net > 0) iOwe.push({ person, amount: net })
+      else if (net < 0) owedToMe.push({ person, amount: -net })
+      // net === 0: rozliczeni — pomijamy
+    }
+    return {
+      iOwe: iOwe.sort((a, b) => b.amount - a.amount),
+      owedToMe: owedToMe.sort((a, b) => b.amount - a.amount),
+    }
+  }, [eventsWithExpenses, user])
+
+  const totalIOwe = globalSummary.iOwe.reduce((s, x) => s + x.amount, 0)
+  const totalOwedToMe = globalSummary.owedToMe.reduce((s, x) => s + x.amount, 0)
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-up">
       <h1 className="font-display text-3xl text-ink mb-1">Rozliczenia</h1>
@@ -146,6 +198,83 @@ export default function ExpensesPage() {
           value={isLoading ? '…' : String(eventsWithExpenses.length)}
         />
       </div>
+
+      {/* ── Global balance summary ── */}
+      {!isLoading && (globalSummary.iOwe.length > 0 || globalSummary.owedToMe.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {/* I owe */}
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowUpRight size={16} className="text-red-500" />
+              <h2 className="font-display text-base text-ink">Jesteś winny łącznie</h2>
+            </div>
+            {globalSummary.iOwe.length === 0 ? (
+              <p className="text-sm text-ink-subtle">Nic nie jesteś winny</p>
+            ) : (
+              <>
+                <p className="font-mono font-bold text-2xl text-red-500 mb-3">
+                  {formatCurrency(totalIOwe, primaryCurrency)}
+                </p>
+                <ul className="space-y-2">
+                  {globalSummary.iOwe.map(({ person, amount }) => (
+                    <li key={person.id} className="flex items-center gap-2">
+                      <img
+                        src={avatarUrl(person)}
+                        referrerPolicy="no-referrer"
+                        alt={userName(person)}
+                        className="w-6 h-6 rounded-full bg-surface-2 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-ink truncate">{userName(person)}</p>
+                        <p className="text-xs text-ink-subtle truncate">{person.email}</p>
+                      </div>
+                      <span className="font-mono text-sm font-semibold text-red-500">
+                        {formatCurrency(amount, primaryCurrency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+
+          {/* Owed to me */}
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowDownLeft size={16} className="text-green-500" />
+              <h2 className="font-display text-base text-ink">Należy Ci się łącznie</h2>
+            </div>
+            {globalSummary.owedToMe.length === 0 ? (
+              <p className="text-sm text-ink-subtle">Nikt Ci nic nie winien</p>
+            ) : (
+              <>
+                <p className="font-mono font-bold text-2xl text-green-600 dark:text-green-400 mb-3">
+                  {formatCurrency(totalOwedToMe, primaryCurrency)}
+                </p>
+                <ul className="space-y-2">
+                  {globalSummary.owedToMe.map(({ person, amount }) => (
+                    <li key={person.id} className="flex items-center gap-2">
+                      <img
+                        src={avatarUrl(person)}
+                        referrerPolicy="no-referrer"
+                        alt={userName(person)}
+                        className="w-6 h-6 rounded-full bg-surface-2 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-ink truncate">{userName(person)}</p>
+                        <p className="text-xs text-ink-subtle truncate">{person.email}</p>
+                      </div>
+                      <span className="font-mono text-sm font-semibold text-green-600 dark:text-green-400">
+                        {formatCurrency(amount, primaryCurrency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Chart ── */}
       {!isLoading && chartData.length > 1 && (
@@ -267,6 +396,7 @@ export default function ExpensesPage() {
                             >
                               <img
                                 src={avatarUrl(b.from)}
+                                referrerPolicy="no-referrer"
                                 alt={userName(b.from)}
                                 className="w-7 h-7 rounded-full bg-surface-2"
                               />
@@ -281,6 +411,7 @@ export default function ExpensesPage() {
                               </div>
                               <img
                                 src={avatarUrl(b.to)}
+                                referrerPolicy="no-referrer"
                                 alt={userName(b.to)}
                                 className="w-7 h-7 rounded-full bg-surface-2"
                               />
@@ -303,6 +434,7 @@ export default function ExpensesPage() {
                           <li key={exp.id} className="py-3 flex items-center gap-3">
                             <img
                               src={avatarUrl(exp.paid_by)}
+                              referrerPolicy="no-referrer"
                               alt={userName(exp.paid_by)}
                               className="w-8 h-8 rounded-full bg-surface-2"
                             />

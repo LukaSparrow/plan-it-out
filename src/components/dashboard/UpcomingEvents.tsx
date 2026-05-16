@@ -63,6 +63,7 @@ export function UpcomingEvents({ events }: UpcomingEventsProps) {
                   <img
                     key={p.id}
                     src={p.user.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}`}
+                    referrerPolicy="no-referrer"
                     className="w-5 h-5 rounded-full border-2 border-surface-1 bg-surface-2"
                     alt={p.user.full_name}
                     onError={(e) => { e.currentTarget.src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.user.id}` }}

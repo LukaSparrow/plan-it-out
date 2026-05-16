@@ -27,28 +27,30 @@ from app.models.expense import Expense
 EPSILON = 0.01
 
 
-def calculate_balances(expenses: List[Expense]) -> List[dict]:
+def calculate_balances(expenses: List[Expense], excluded_user_ids: set | None = None) -> List[dict]:
     """
     Zwraca listę "kto komu ile winien" jako listę słowników:
     [{"from_user_id": UUID, "to_user_id": UUID, "amount": float}, ...]
 
     Endpoint owija to potem w schemat Balance, dociągając pełne obiekty UserPublic.
+    excluded_user_ids: użytkownicy z RSVP=DECLINED – ich udziały są pomijane.
     """
     if not expenses:
         return []
+
+    excluded = excluded_user_ids or set()
 
     # Krok 1: net balance per user_id
     net: Dict[UUID, float] = defaultdict(float)
 
     for exp in expenses:
-        if not exp.splits:
-            # Wydatek bez splitów - traktujemy jakby tylko płacący był obciążony
-            # (czyli efektywnie 0, sam sobie zapłacił). Pomijamy.
+        active_splits = [s for s in exp.splits if s.user_id not in excluded]
+        if not active_splits:
             continue
 
-        share = exp.amount / len(exp.splits)
+        share = exp.amount / len(active_splits)
         net[exp.paid_by_id] += exp.amount   # Dostaje całość
-        for split in exp.splits:
+        for split in active_splits:
             net[split.user_id] -= share     # Każdy "split-er" oddaje swój udział
 
     # Krok 2: greedy matching - zaokrąglamy do 2 miejsc, żeby uniknąć dryfu floatów

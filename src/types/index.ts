@@ -1,3 +1,8 @@
+/**
+ * Typy TypeScript odzwierciedlające schematy backendu (FastAPI/Pydantic).
+ * Zmiany w modelach backendu powinny być synchronizowane z tymi interfejsami.
+ */
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export interface User {
   id: string

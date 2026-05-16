@@ -80,11 +80,11 @@ const eventSchema = z
   )
   .refine(
     (d) => {
-      // Jeśli podano end_date/end_time – muszą być po starcie
-      if (!d.end_date && !d.end_time) return true
-      if (!d.end_date || !d.end_time) return false
+      // Jeśli podano end_date/end_time – muszą być po starcie; brak end_time → 23:59
+      if (!d.end_date) return true
+      if (!d.end_date) return false
       const start = new Date(`${d.date}T${d.time}`)
-      const end = new Date(`${d.end_date}T${d.end_time}`)
+      const end = new Date(`${d.end_date}T${d.end_time || '23:59'}`)
       return end.getTime() > start.getTime()
     },
     {
@@ -141,10 +141,9 @@ export default function NewEventPage() {
   const createMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
       const isoDate = new Date(`${data.date}T${data.time}`).toISOString()
-      const isoEndDate =
-        data.end_date && data.end_time
-          ? new Date(`${data.end_date}T${data.end_time}`).toISOString()
-          : undefined
+      const isoEndDate = data.end_date
+        ? new Date(`${data.end_date}T${data.end_time || '23:59'}`).toISOString()
+        : undefined
       const payload = {
         title: data.title,
         description: data.description || undefined,

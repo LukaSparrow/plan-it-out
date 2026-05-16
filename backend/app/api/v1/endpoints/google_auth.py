@@ -1,6 +1,8 @@
 """
-Google OAuth2 — logowanie przez Google.
-Przepływ: /auth/google → Google consent → /auth/google/callback → JWT → frontend /auth/callback
+Google OAuth2 — logowanie przez Google oraz podłączanie Google Calendar.
+
+Przepływ logowania: /auth/google → Google consent → /auth/google/callback → JWT → frontend /auth/callback
+Przepływ kalendarza: /auth/google/calendar → Google consent → /auth/google/calendar/callback → zapisanie refresh_token
 """
 from urllib.parse import urlencode
 from uuid import UUID
@@ -108,7 +110,7 @@ def _calendar_callback_uri() -> str:
 
 @router.get("/google/calendar")
 def connect_google_calendar(token: str) -> RedirectResponse:
-    """Initiates Google OAuth to get calendar.events scope + refresh token."""
+    """Rozpoczyna OAuth do pobrania zakresu calendar.events + refresh_token."""
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=501, detail="Google OAuth not configured")
     try:
@@ -134,7 +136,7 @@ async def google_calendar_callback(
     state: str,
     session: SessionDep,
 ) -> RedirectResponse:
-    """Exchanges authorization code for refresh token and stores it on the user."""
+    """Wymienia kod autoryzacyjny na refresh_token i zapisuje go w profilu użytkownika."""
     error_url = f"{settings.FRONTEND_URL}/dashboard/settings?calendar=error"
 
     try:
@@ -178,7 +180,7 @@ def disconnect_google_calendar(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Disconnects Google Calendar: clears refresh token and disables sync."""
+    """Odłącza Google Calendar — usuwa refresh_token i wyłącza auto-sync."""
     current_user.google_refresh_token = None
     current_user.google_calendar_sync = False
     session.add(current_user)

@@ -10,7 +10,7 @@ from sqlmodel import select
 from app.api.deps import SessionDep, get_current_user
 from app.models.user import User
 from app.models.event import Event
-from app.models.participant import Participant
+from app.models.participant import Participant, RsvpStatus
 from app.models.expense import Expense, ExpenseSplit
 from app.schemas.expense import ExpenseCreate, ExpenseRead, Balance
 from app.schemas.user import UserPublic
@@ -37,8 +37,9 @@ def _check_event_access(session: SessionDep, event_id: UUID, user: User) -> Even
     return event
 
 
-def _expense_to_read(exp: Expense) -> ExpenseRead:
+def _expense_to_read(exp: Expense, excluded_user_ids: set | None = None) -> ExpenseRead:
     """Helper - mapuje Expense + splits na ExpenseRead z płaską listą UUID."""
+    excluded = excluded_user_ids or set()
     return ExpenseRead(
         id=exp.id,
         event_id=exp.event_id,
@@ -47,7 +48,7 @@ def _expense_to_read(exp: Expense) -> ExpenseRead:
         currency=exp.currency,
         created_at=exp.created_at,
         paid_by=UserPublic.model_validate(exp.paid_by),
-        split_among=[s.user_id for s in exp.splits],
+        split_among=[s.user_id for s in exp.splits if s.user_id not in excluded],
     )
 
 
@@ -63,7 +64,13 @@ def list_expenses(
         .where(Expense.event_id == event_id)
         .order_by(Expense.created_at.desc())
     ).all()
-    return [_expense_to_read(e) for e in expenses]
+    declined_ids = set(session.exec(
+        select(Participant.user_id).where(
+            Participant.event_id == event_id,
+            Participant.rsvp == RsvpStatus.DECLINED,
+        )
+    ).all())
+    return [_expense_to_read(e, excluded_user_ids=declined_ids) for e in expenses]
 
 
 @router.post(
@@ -136,7 +143,14 @@ def get_balances(
         select(Expense).where(Expense.event_id == event_id)
     ).all()
 
-    raw = calculate_balances(expenses)  # [{from_user_id, to_user_id, amount}, ...]
+    declined_ids = set(session.exec(
+        select(Participant.user_id).where(
+            Participant.event_id == event_id,
+            Participant.rsvp == RsvpStatus.DECLINED,
+        )
+    ).all())
+
+    raw = calculate_balances(expenses, excluded_user_ids=declined_ids)
 
     if not raw:
         return []

@@ -1,3 +1,8 @@
+"""
+Serwis do tworzenia wydarzeń w Google Calendar użytkownika.
+Synchronizacja jest "best-effort" — błędy są logowane, ale nie przerywają
+głównego flow aplikacji (wywoływane jako BackgroundTask).
+"""
 import httpx
 from app.core.config import settings
 
@@ -6,6 +11,7 @@ GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/p
 
 
 async def _get_access_token(refresh_token: str) -> str:
+    """Wymienia refresh_token na krótkotrwały access_token potrzebny do API Kalendarza."""
     async with httpx.AsyncClient() as client:
         r = await client.post(GOOGLE_TOKEN_URL, data={
             "client_id": settings.GOOGLE_CLIENT_ID,
@@ -25,12 +31,17 @@ async def create_calendar_event(
     location: str | None,
     description: str | None,
 ) -> None:
+    """
+    Tworzy wydarzenie w Google Calendar zalogowanego użytkownika.
+    Całość owinięta w try/except — błąd Google nie powinien walić głównego requesta.
+    """
     try:
         access_token = await _get_access_token(refresh_token)
         event_body = {
             "summary": title,
             "location": location or "",
             "description": description or "",
+            # Strefa Warsaw — serwer trzyma daty naiwne (bez TZ), frontend pokazuje czas lokalny
             "start": {"dateTime": start_iso, "timeZone": "Europe/Warsaw"},
             "end": {"dateTime": end_iso, "timeZone": "Europe/Warsaw"},
         }
